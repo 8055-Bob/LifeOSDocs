@@ -49,5 +49,6 @@
 - [x] Add a synthetic AI evaluation harness for response structure and diagnosis-safety checks.
 - [x] Add a local release runbook for setup, smoke checks, updates and safe diagnostics.
 - [x] Add privacy-safe technical telemetry for successful diary analysis requests.
-- [ ] Add end-to-end flows and an expanded privacy/security suite.
+- [x] Add an end-to-end HTTP flow for analysis, history and deletion of a diary record.
+- [ ] Add an expanded privacy/security suite.
 - [ ] Validate accessibility, performance, deletion, and safety gates before beta.
