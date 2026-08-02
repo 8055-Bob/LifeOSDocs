@@ -1,0 +1,1 @@
+{"name":"@lifeos/api","private":true,"type":"module","version":"0.0.0","dependencies":{"@lifeos/contracts":"workspace:*"},"scripts":{"start":"node --env-file=../../.env src/server.js","test":"node --test test/*.test.mjs","typecheck":"node --check src/index.js","build":"node --check src/index.js"}}

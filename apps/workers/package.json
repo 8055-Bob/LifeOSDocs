@@ -1,0 +1,1 @@
+{"name":"@lifeos/workers","private":true,"type":"module","version":"0.0.0","dependencies":{"@lifeos/contracts":"workspace:*"},"scripts":{"test":"node --test test/*.test.mjs","typecheck":"node --check src/index.js","build":"node --check src/index.js"}}

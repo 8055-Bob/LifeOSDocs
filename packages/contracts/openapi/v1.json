@@ -1,0 +1,97 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LifeOS API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/life-records": {
+      "post": {
+        "operationId": "createLifeRecord",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateLifeRecordRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Life Record created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LifeRecordDraft" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["status"],
+        "properties": { "status": { "const": "ok" } }
+      },
+      "CreateLifeRecordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceType", "rawText"],
+        "properties": {
+          "sourceType": { "const": "text" },
+          "rawText": { "type": "string", "minLength": 1 }
+        }
+      },
+      "LifeRecordDraft": {
+        "type": "object",
+        "required": ["userId", "sourceType", "rawText", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "userId": { "type": "string" },
+          "sourceType": { "const": "text" },
+          "rawText": { "type": "string" },
+          "status": { "const": "draft" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["code", "message", "requestId"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "requestId": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      }
+    }
+  }
+}
