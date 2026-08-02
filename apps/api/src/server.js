@@ -4,6 +4,7 @@ import { GeminiAnalysisProvider } from './gemini-analysis-provider.js';
 import { OpenRouterAnalysisProvider } from './openrouter-analysis-provider.js';
 import { getSupabaseServerConfig } from './supabase-config.js';
 import { SupabaseRecordStore } from './supabase-record-store.js';
+import { createSafeConsoleTelemetry } from './observability.js';
 
 const provider = process.env.AI_PROVIDER === 'openrouter'
   ? new OpenRouterAnalysisProvider({ apiKey: process.env.OPENROUTER_API_KEY })
@@ -13,7 +14,8 @@ const provider = process.env.AI_PROVIDER === 'openrouter'
 const recordStore = process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY
   ? new SupabaseRecordStore(getSupabaseServerConfig())
   : null;
-const server = createAnalysisHttpServer({ provider, recordStore });
+const telemetry = createSafeConsoleTelemetry();
+const server = createAnalysisHttpServer({ provider, recordStore, telemetry });
 const port = Number(process.env.PORT ?? 8787);
 
 server.listen(port, '0.0.0.0', () => {

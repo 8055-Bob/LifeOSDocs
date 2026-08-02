@@ -41,7 +41,16 @@ function readBearerToken(request) {
   return authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length).trim() : null;
 }
 
-export function createAnalysisHttpServer({ provider, recordStore = null }) {
+function emitTelemetry(telemetry, event, details) {
+  if (!telemetry?.record) return;
+  try {
+    telemetry.record({ event, details });
+  } catch {
+    console.error('LifeOS telemetry failed');
+  }
+}
+
+export function createAnalysisHttpServer({ provider, recordStore = null, telemetry = null }) {
   return createServer(async (request, response) => {
     if (request.method === 'OPTIONS') return sendJson(response, 204, {});
 
@@ -73,15 +82,18 @@ export function createAnalysisHttpServer({ provider, recordStore = null }) {
     if (request.method !== 'POST' || request.url !== '/v1/diary/analyze') return sendJson(response, 404, { error: 'Not found' });
 
     try {
+      const startedAt = Date.now();
       const { text, mood } = validateDiaryInput(await readJson(request));
       const analysis = await provider.analyze({ text });
       const accessToken = readBearerToken(request);
 
       if (!recordStore || !accessToken) {
+        emitTelemetry(telemetry, 'diary.analysis.succeeded', { durationMs: Date.now() - startedAt, persisted: false });
         return sendJson(response, 200, analysis);
       }
 
       const record = await recordStore.saveAnalyzedRecord({ accessToken, text, mood, analysis });
+      emitTelemetry(telemetry, 'diary.analysis.succeeded', { durationMs: Date.now() - startedAt, persisted: true });
       return sendJson(response, 200, { ...analysis, recordId: record.id });
     } catch (error) {
       if (error instanceof InputError) return sendJson(response, 400, { error: error.message });

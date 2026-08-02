@@ -18,6 +18,27 @@ test('accepts a diary thought and returns the provider analysis over HTTP', asyn
   await new Promise((resolve) => server.close(resolve));
 });
 
+test('emits privacy-safe telemetry for a completed diary analysis', async (t) => {
+  const events = [];
+  const server = createAnalysisHttpServer({
+    provider: { analyze: async () => ({ summary: 'Summary', emotions: [], topics: [], reflectionQuestion: 'Question?', nextAction: 'Rest.' }) },
+    telemetry: { record: (event) => events.push(event) },
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/diary/analyze`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Личная мысль, которую нельзя логировать.' }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event, 'diary.analysis.succeeded');
+  assert.equal(typeof events[0].details.durationMs, 'number');
+  assert.equal(JSON.stringify(events[0]).includes('Личная мысль'), false);
+});
+
 test('rejects an empty or oversized diary thought before calling the AI provider', async (t) => {
   let calls = 0;
   const server = createAnalysisHttpServer({

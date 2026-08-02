@@ -11,3 +11,12 @@ export function createRequestLog({ requestId, event, details }) {
     details: safeDetails,
   };
 }
+
+export function createSafeConsoleTelemetry({ write = console.info } = {}) {
+  if (typeof write !== 'function') throw new Error('telemetry write function is required');
+  return {
+    record({ event, details = {} }) {
+      write(JSON.stringify(createRequestLog({ event, details })));
+    },
+  };
+}
