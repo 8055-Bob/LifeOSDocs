@@ -18,6 +18,47 @@ test('accepts a diary thought and returns the provider analysis over HTTP', asyn
   await new Promise((resolve) => server.close(resolve));
 });
 
+test('rejects an empty or oversized diary thought before calling the AI provider', async (t) => {
+  let calls = 0;
+  const server = createAnalysisHttpServer({
+    provider: { analyze: async () => { calls += 1; return {}; } },
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+
+  const empty = await fetch(`http://127.0.0.1:${port}/v1/diary/analyze`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: '   ' }),
+  });
+  const tooLong = await fetch(`http://127.0.0.1:${port}/v1/diary/analyze`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'x'.repeat(10_001) }),
+  });
+
+  assert.equal(empty.status, 400);
+  assert.deepEqual(await empty.json(), { error: 'Text must be between 1 and 10000 characters' });
+  assert.equal(tooLong.status, 400);
+  assert.deepEqual(await tooLong.json(), { error: 'Text must be between 1 and 10000 characters' });
+  assert.equal(calls, 0);
+});
+
+test('returns a safe error for malformed diary JSON', async (t) => {
+  let calls = 0;
+  const server = createAnalysisHttpServer({
+    provider: { analyze: async () => { calls += 1; return {}; } },
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/diary/analyze`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not-json}',
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Invalid request body' });
+  assert.equal(calls, 0);
+});
+
 test('persists an analyzed thought for the authenticated user when a record store is configured', async (t) => {
   const saved = [];
   const server = createAnalysisHttpServer({

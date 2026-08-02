@@ -45,5 +45,6 @@
 
 ### Stage 5: Release quality
 
+- [x] Reject malformed, empty and oversized diary requests before they reach an AI provider.
 - [ ] Add end-to-end flows, privacy/security suite, AI evaluation harness, telemetry, and release runbook.
 - [ ] Validate accessibility, performance, deletion, and safety gates before beta.
