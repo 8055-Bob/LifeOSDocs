@@ -47,5 +47,6 @@
 
 - [x] Reject malformed, empty and oversized diary requests before they reach an AI provider.
 - [x] Add a synthetic AI evaluation harness for response structure and diagnosis-safety checks.
-- [ ] Add end-to-end flows, privacy/security suite, AI evaluation harness, telemetry, and release runbook.
+- [x] Add a local release runbook for setup, smoke checks, updates and safe diagnostics.
+- [ ] Add end-to-end flows, expanded privacy/security suite and telemetry.
 - [ ] Validate accessibility, performance, deletion, and safety gates before beta.
