@@ -37,7 +37,9 @@
 
 ### Stage 4: External and persistent infrastructure
 
-- [ ] Replace in-memory stores with database, object storage, and durable queue adapters.
+- [x] Add a Supabase durable queue adapter and apply its `processing_jobs` migration.
+- [ ] Connect durable jobs to future non-interactive worker tasks; immediate diary analysis remains synchronous by product decision.
+- [ ] Replace remaining in-memory stores with production object-storage adapters when the product needs retained media.
 - [ ] Connect selected STT/LLM providers through the existing adapters.
 - [ ] Configure Google/Apple OAuth, email delivery, push provider, and production secrets after credentials are supplied.
 
