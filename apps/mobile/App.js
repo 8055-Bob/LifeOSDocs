@@ -37,7 +37,13 @@ export default function App() {
   const recorderState = useAudioRecorderState(recorder);
   const [session, setSession] = useState(null);
   const [restoringSession, setRestoringSession] = useState(true);
+  const [launchReady, setLaunchReady] = useState(false);
   const pagerRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLaunchReady(true), 850);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     secureSessionStore.load()
@@ -119,6 +125,7 @@ export default function App() {
         analysis: result,
       }));
       setAnalysis(result);
+      setThought('');
       setShowComposer(false);
       setShowResult(true);
     } catch (submissionError) {
@@ -209,8 +216,8 @@ export default function App() {
   if (showInsights) return <InsightsScreen insights={createWeeklyInsights({ records: history, habits, goals })} onClose={() => setShowInsights(false)} activeTab={activeTab} onTabChange={openPrimaryTab} />;
   if (showComposer) return <ComposerScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onClose={() => setShowComposer(false)} onSubmit={submitThought} onToggleVoice={toggleVoiceRecording} isRecording={recorderState.isRecording} voiceLoading={voiceLoading} loading={loading} error={error} activeTab={activeTab} onTabChange={openPrimaryTab} />;
 
-  if (restoringSession) {
-    return <SafeAreaView style={styles.screen}><Text style={styles.body}>Загружаем LifeOS…</Text></SafeAreaView>;
+  if (restoringSession || !launchReady) {
+    return <LaunchScreen />;
   }
 
   if (!session) {
@@ -219,7 +226,7 @@ export default function App() {
 
   return (
     <PagerView ref={pagerRef} style={styles.pager} initialPage={['home', 'diary', 'goals', 'profile'].indexOf(activeTab)} onPageSelected={(event) => setActiveTab(['home', 'diary', 'goals', 'profile'][event.nativeEvent.position])}>
-      <View key="home" style={styles.pagerPage}><HomeScreen mood={mood} onMoodChange={setMood} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
+      <View key="home" style={styles.pagerPage}><HomeScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="diary" style={styles.pagerPage}><HistoryScreen records={createJournalHistoryViewModel(history)} loading={historyLoading} error={historyError} onDelete={removeRecord} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="goals" style={styles.pagerPage}><GoalsScreen goals={goals} onAdd={addGoal} onProgress={setGoalProgress} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="profile" style={styles.pagerPage}><ProfileScreen email={session.user.email} onSignOut={signOut} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
@@ -227,16 +234,31 @@ export default function App() {
   );
 }
 
-function HomeScreen({ mood, onMoodChange, habits, history, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
+function LaunchScreen() {
+  return <SafeAreaView style={styles.launchScreen}>
+    <View style={styles.launchOrbitOuter}><View style={styles.launchOrbitInner} /></View>
+    <View style={styles.launchMark}><View style={styles.launchMarkCore} /></View>
+    <Text style={styles.launchWordmark}>LifeOS</Text>
+    <Text style={styles.launchTagline}>Немного ясности каждый день</Text>
+    <View style={styles.launchLoader}><View style={styles.launchLoaderActive} /></View>
+  </SafeAreaView>;
+}
+
+function HomeScreen({ mood, onMoodChange, thought, onThoughtChange, onSubmitThought, loading, habits, history, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
       <View style={styles.homeHeader}>
-        <View><Text style={styles.overline}>LIFEOS</Text><Text style={styles.homeTitle}>Добрый вечер</Text><Text style={styles.homeTitle}>Алексей</Text></View>
+        <View><Text style={styles.brandName}>LifeOS</Text><Text style={styles.homeTitle}>Добрый вечер, Алексей</Text><Text style={styles.homeSubtitle}>Выбери состояние или поделись мыслью — я помогу навести ясность.</Text></View>
         <Pressable onPress={onOpenProfile} style={styles.avatar}><Text style={styles.avatarText}>А</Text></Pressable>
       </View>
-      <View style={styles.checkInSurface}><Text style={styles.checkInTitle}>Как ты сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /><Pressable onPress={onOpenComposer} style={styles.homePrimaryButton}><Text style={styles.homePrimaryButtonText}>Поделиться мыслью</Text></Pressable></View>
+      <View style={styles.checkInSurface}><Text style={styles.checkInTitle}>Как ты сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /></View>
+      <View style={styles.quickThoughtSurface}>
+        <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="О чём думаешь?" placeholderTextColor="#7D7593" style={styles.quickThoughtInput} />
+        <Pressable onPress={onOpenComposer} style={styles.voiceShortcut}><Text style={styles.voiceShortcutText}>Рассказать голосом</Text></Pressable>
+      </View>
+      <Pressable disabled={loading || !thought.trim()} onPress={onSubmitThought} style={[styles.homePrimaryButton, (!thought.trim() || loading) && styles.disabledButton]}><Text style={styles.homePrimaryButtonText}>{loading ? 'Анализируем…' : 'Поделиться мыслью'}</Text></Pressable>
       <Pressable onPress={onOpenHabits} style={styles.todayRow}><View style={styles.todayIcon}><Text style={styles.todayIconText}>✓</Text></View><View style={styles.flexGrow}><Text style={styles.todayTitle}>Сегодня</Text><Text style={styles.todayText}>Привычки · {habits.filter((habit) => habit.completedToday).length} из {habits.length || 1}</Text></View><Text style={styles.rowArrow}>›</Text></Pressable>
-      <Pressable onPress={onOpenInsights} style={styles.insightSurface}><Text style={styles.insightEyebrow}>LIFEOS ЗАМЕТИЛ</Text><Text style={styles.insightText}>{history.length > 0 ? 'Твои записи уже начинают складываться в личную картину.' : 'Поделись первой мыслью — я помогу увидеть важное.'}</Text><Text style={styles.insightAction}>Посмотреть разбор  ›</Text></Pressable>
+      <Pressable onPress={onOpenInsights} style={styles.insightSurface}><Text style={styles.insightHeading}>Инсайт дня</Text><Text style={styles.insightText}>{history.length > 0 ? 'Твои записи уже начинают складываться в личную картину.' : 'Поделись первой мыслью — я помогу увидеть важное.'}</Text><Text style={styles.insightAction}>Посмотреть разбор  ›</Text></Pressable>
     </ScrollView>
     <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
   </SafeAreaView>;
@@ -250,7 +272,7 @@ function MoodPicker({ mood, onChange }) {
 function BottomNavigation({ activeTab, onTabChange }) {
   const { width } = useWindowDimensions();
   const tabs = [{ id: 'home', label: 'Главная' }, { id: 'diary', label: 'Дневник' }, { id: 'goals', label: 'Цели' }, { id: 'profile', label: 'Профиль' }];
-  const itemWidth = (width - 32) / tabs.length;
+  const itemWidth = (width - 24) / tabs.length;
   const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.id === activeTab));
   const indicatorX = useRef(new Animated.Value(activeIndex * itemWidth)).current;
   useEffect(() => {
@@ -267,7 +289,7 @@ function ComposerScreen({ mood, onMoodChange, thought, onThoughtChange, onClose,
     <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>‹ Назад</Text></Pressable>
     <Text style={styles.composerTitle}>Новая мысль</Text><Text style={styles.composerSubtitle}>Расскажи как есть — я помогу навести ясность.</Text>
     <MoodPicker mood={mood} onChange={onMoodChange} />
-    <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="Что сейчас у тебя в голове?" placeholderTextColor="#8994AA" style={styles.composerInput} />
+    <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="Что сейчас у тебя в голове?" placeholderTextColor="#7D7593" style={styles.composerInput} />
     {isRecording && <Text style={styles.recordingIndicator}>Идёт запись — говори, когда будешь готов.</Text>}
     <Pressable disabled={voiceLoading} onPress={onToggleVoice} style={[styles.voiceCaptureButton, isRecording && styles.recordingButton, voiceLoading && styles.disabledButton]}><Text style={[styles.voiceCaptureText, isRecording && styles.recordingButtonText]}>{voiceLoading ? 'Расшифровываем…' : isRecording ? 'Остановить запись' : 'Записать голосом'}</Text></Pressable>
     <Pressable disabled={loading || !thought.trim()} onPress={onSubmit} style={[styles.primaryButton, (!thought.trim() || loading) && styles.disabledButton]}><Text style={styles.primaryButtonText}>{loading ? 'Анализируем…' : 'Получить разбор'}</Text></Pressable>
@@ -289,7 +311,7 @@ function HabitsScreen({ habits, onAdd, onComplete, onClose, activeTab, onTabChan
     <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable>
     <Text style={styles.resultTitle}>Привычки</Text>
     <View style={styles.resultSection}>
-      <TextInput value={name} onChangeText={setName} placeholder="Новая привычка" placeholderTextColor="#8591A8" style={styles.input} />
+      <TextInput value={name} onChangeText={setName} placeholder="Новая привычка" placeholderTextColor="#7D7593" style={styles.input} />
       <Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Добавить привычку</Text></Pressable>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -306,7 +328,7 @@ function GoalsScreen({ goals, onAdd, onProgress, onClose, activeTab, onTabChange
   async function progress(goal) { try { await onProgress(goal.id, Math.min(100, goal.progress + 10)); setError(null); } catch (reason) { setError(reason.message); } }
   return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent}>
     <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Цели</Text>
-    <View style={styles.resultSection}><TextInput value={title} onChangeText={setTitle} placeholder="Новая цель" placeholderTextColor="#8591A8" style={styles.input} /><TextInput value={targetDate} onChangeText={setTargetDate} placeholder="Срок: ГГГГ-ММ-ДД (необязательно)" placeholderTextColor="#8591A8" style={styles.input} /><Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Создать цель</Text></Pressable>{error && <Text style={styles.error}>{error}</Text>}</View>
+    <View style={styles.resultSection}><TextInput value={title} onChangeText={setTitle} placeholder="Новая цель" placeholderTextColor="#7D7593" style={styles.input} /><TextInput value={targetDate} onChangeText={setTargetDate} placeholder="Срок: ГГГГ-ММ-ДД (необязательно)" placeholderTextColor="#7D7593" style={styles.input} /><Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Создать цель</Text></Pressable>{error && <Text style={styles.error}>{error}</Text>}</View>
     {goals.length === 0 ? <Text style={styles.body}>Добавь цель, к которой хочешь двигаться.</Text> : goals.map((goal) => <View key={goal.id} style={styles.resultSection}><Text style={styles.body}>{goal.title}</Text><Text style={styles.historyDate}>{goal.progress}%{goal.targetDate ? ` · до ${goal.targetDate}` : ''}</Text><Pressable disabled={goal.status === 'completed'} onPress={() => progress(goal)} style={[styles.primaryButton, goal.status === 'completed' && styles.disabledButton]}><Text style={styles.primaryButtonText}>{goal.status === 'completed' ? 'Цель выполнена' : '+10% прогресса'}</Text></Pressable></View>)}
   </ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
@@ -356,8 +378,8 @@ function AuthScreen({ onAuthenticated }) {
       <View style={styles.card}>
         <Text style={styles.title}>LifeOS</Text>
         <Text style={styles.body}>{mode === 'signin' ? 'Войди, чтобы твои записи были доступны только тебе.' : 'Создай аккаунт для личного и защищённого дневника.'}</Text>
-        <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor="#8591A8" style={styles.input} />
-        <TextInput value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} placeholder="Пароль (минимум 6 символов)" placeholderTextColor="#8591A8" style={styles.input} />
+        <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor="#7D7593" style={styles.input} />
+        <TextInput value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} placeholder="Пароль (минимум 6 символов)" placeholderTextColor="#7D7593" style={styles.input} />
         <Pressable disabled={loading} onPress={submit} style={[styles.primaryButton, loading && styles.disabledButton]}><Text style={styles.primaryButtonText}>{loading ? 'Подождите…' : mode === 'signin' ? 'Войти' : 'Создать аккаунт'}</Text></Pressable>
         {error && <Text style={styles.error}>{error}</Text>}
         {info && <Text style={styles.info}>{info}</Text>}
@@ -423,80 +445,95 @@ function HistoryScreen({ records, loading, error, onDelete, onClose, activeTab, 
 }
 
 const styles = StyleSheet.create({
-  pager: { flex: 1, backgroundColor: '#F7F8FC' },
+  pager: { flex: 1, backgroundColor: '#FBF9FF' },
   pagerPage: { flex: 1 },
-  screen: { flex: 1, backgroundColor: '#F7F8FC' },
-  card: { gap: 14, padding: 24, margin: 24, borderRadius: 24, backgroundColor: '#FFFFFF' },
-  title: { fontSize: 28, fontWeight: '700', color: '#162033' },
-  body: { fontSize: 17, lineHeight: 24, color: '#40506A' },
-  section: { fontSize: 16, fontWeight: '600', color: '#162033', marginTop: 8 },
+  screen: { flex: 1, backgroundColor: '#FBF9FF' },
+  launchScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, overflow: 'hidden', backgroundColor: '#8A7BC7' },
+  launchOrbitOuter: { position: 'absolute', width: 300, height: 300, borderRadius: 150, borderWidth: 1, borderColor: '#CFC7EE', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-18deg' }] },
+  launchOrbitInner: { width: 170, height: 170, borderRadius: 85, borderWidth: 1, borderColor: '#DDD6F5', backgroundColor: '#978AD0' },
+  launchMark: { width: 72, height: 72, borderRadius: 24, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '45deg' }] },
+  launchMarkCore: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFFFFF', transform: [{ rotate: '-45deg' }] },
+  launchWordmark: { color: '#FFFFFF', fontSize: 34, fontWeight: '800', letterSpacing: -0.8, marginTop: 12 },
+  launchTagline: { color: '#F3F0FF', fontSize: 15, fontWeight: '600' },
+  launchLoader: { position: 'absolute', bottom: 48, width: 92, height: 4, borderRadius: 99, overflow: 'hidden', backgroundColor: '#BEB5E4' },
+  launchLoaderActive: { width: 42, height: 4, borderRadius: 99, marginLeft: 25, backgroundColor: '#FFFFFF' },
+  card: { gap: 14, padding: 24, margin: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  title: { fontSize: 28, fontWeight: '700', color: '#30294B', letterSpacing: -0.3 },
+  body: { fontSize: 16, lineHeight: 24, color: '#57516D' },
+  section: { fontSize: 16, fontWeight: '700', color: '#30294B', marginTop: 8 },
   moodRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   moodButton: { padding: 8, borderRadius: 12 },
-  moodSelected: { backgroundColor: '#DDE9FF' },
+  moodSelected: { backgroundColor: '#EEE9FF' },
   emoji: { fontSize: 24 },
-  input: { minHeight: 96, borderWidth: 1, borderColor: '#D9E0EB', borderRadius: 14, padding: 14, fontSize: 16, textAlignVertical: 'top', color: '#162033' },
-  primaryButton: { alignItems: 'center', backgroundColor: '#3563E9', borderRadius: 16, padding: 16 },
+  input: { minHeight: 96, borderWidth: 1, borderColor: '#E1DBEC', borderRadius: 16, padding: 16, fontSize: 16, textAlignVertical: 'top', color: '#30294B', backgroundColor: '#FEFCFF' },
+  primaryButton: { alignItems: 'center', backgroundColor: '#7562B8', borderRadius: 16, minHeight: 56, justifyContent: 'center', paddingHorizontal: 18 },
   disabledButton: { opacity: 0.6 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  voiceButton: { alignItems: 'center', borderWidth: 1, borderColor: '#2563EB', borderRadius: 14, padding: 14 },
-  voiceButtonText: { color: '#2563EB', fontSize: 16, fontWeight: '700' },
+  voiceButton: { alignItems: 'center', borderWidth: 1, borderColor: '#CEC4EC', borderRadius: 16, padding: 14, backgroundColor: '#F7F3FF' },
+  voiceButtonText: { color: '#6652A4', fontSize: 16, fontWeight: '700' },
   recordingButton: { borderColor: '#B42318', backgroundColor: '#FFF1F2' },
   recordingButtonText: { color: '#B42318' },
   recordingIndicator: { color: '#B42318', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   historyButton: { alignSelf: 'flex-start', paddingVertical: 4 },
-  historyButtonText: { color: '#2563EB', fontSize: 15, fontWeight: '600' },
+  historyButtonText: { color: '#6652A4', fontSize: 15, fontWeight: '600' },
   error: { color: '#B42318', fontSize: 14, lineHeight: 20 },
   info: { color: '#1E6A4E', fontSize: 14, lineHeight: 20 },
-  meta: { fontSize: 14, color: '#6B778C' },
-  resultContent: { gap: 16, padding: 24, paddingBottom: 40 },
+  meta: { fontSize: 14, color: '#716A82' },
+  resultContent: { gap: 16, padding: 20, paddingBottom: 40 },
   backButton: { alignSelf: 'flex-start', paddingVertical: 8 },
-  backButtonText: { color: '#2563EB', fontSize: 16, fontWeight: '600' },
-  resultTitle: { color: '#162033', fontSize: 30, fontWeight: '700', marginBottom: 2 },
-  resultSection: { gap: 10, padding: 18, borderRadius: 18, backgroundColor: '#FFFFFF' },
-  highlightedSection: { backgroundColor: '#EEF6FF', borderWidth: 1, borderColor: '#C9DDFE' },
-  analysisTitle: { color: '#162033', fontSize: 14, fontWeight: '700' },
+  backButtonText: { color: '#6652A4', fontSize: 16, fontWeight: '700' },
+  resultTitle: { color: '#30294B', fontSize: 30, fontWeight: '700', letterSpacing: -0.4, marginBottom: 2 },
+  resultSection: { gap: 10, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  highlightedSection: { backgroundColor: '#F3EFFF', borderWidth: 1, borderColor: '#D8CDF4' },
+  analysisTitle: { color: '#30294B', fontSize: 14, fontWeight: '800' },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   emotionTag: { backgroundColor: '#FDECEF', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 7 },
   topicTag: { backgroundColor: '#EAF5F0', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 7 },
-  tagText: { color: '#40506A', fontSize: 14, fontWeight: '600' },
-  historyDate: { color: '#6B778C', fontSize: 14, fontWeight: '600' },
+  tagText: { color: '#57516D', fontSize: 14, fontWeight: '600' },
+  historyDate: { color: '#716A82', fontSize: 14, fontWeight: '600' },
   deleteButton: { alignSelf: 'flex-start', paddingVertical: 4 },
   deleteButtonText: { color: '#B42318', fontSize: 14, fontWeight: '600' },
-  homeContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 128, gap: 18 },
-  homeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
-  overline: { color: '#607092', fontSize: 12, fontWeight: '800', letterSpacing: 1.6, marginBottom: 10 },
-  homeTitle: { color: '#18233D', fontSize: 34, lineHeight: 39, fontWeight: '800', letterSpacing: -0.8 },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E9EEFC', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#3563E9', fontSize: 19, fontWeight: '800' },
-  checkInSurface: { gap: 18, padding: 22, borderRadius: 24, backgroundColor: '#FFFFFF' },
-  checkInTitle: { color: '#18233D', fontSize: 25, fontWeight: '800', letterSpacing: -0.4 },
-  moodChoice: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 6, borderRadius: 16 },
-  moodDot: { width: 24, height: 24, borderWidth: 2, borderColor: '#CBD4E5', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  moodDotSelected: { borderColor: '#3563E9', backgroundColor: '#DCE6FF' },
-  moodLabel: { color: '#6E7A90', fontSize: 10, textAlign: 'center', fontWeight: '600' },
-  moodLabelSelected: { color: '#3563E9' },
-  homePrimaryButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 18, minHeight: 60, paddingHorizontal: 16, backgroundColor: '#3563E9' },
+  homeContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 128, gap: 16 },
+  homeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 4 },
+  brandName: { color: '#6652A4', fontSize: 18, fontWeight: '800', letterSpacing: -0.2, marginBottom: 16 },
+  homeTitle: { color: '#30294B', fontSize: 31, lineHeight: 38, fontWeight: '800', letterSpacing: -0.7 },
+  homeSubtitle: { color: '#686177', fontSize: 15, lineHeight: 22, marginTop: 8, maxWidth: 292 },
+  avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 1, borderColor: '#D7CCF0', backgroundColor: '#EEE9FF', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#6652A4', fontSize: 18, fontWeight: '800' },
+  checkInSurface: { gap: 14, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  checkInTitle: { color: '#30294B', fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
+  moodChoice: { flex: 1, alignItems: 'center', gap: 6, minHeight: 60, paddingVertical: 6, borderRadius: 12 },
+  moodDot: { width: 22, height: 22, borderWidth: 2, borderColor: '#A39BAD', borderRadius: 11, backgroundColor: '#FFFFFF' },
+  moodDotSelected: { borderColor: '#7562B8', backgroundColor: '#E8E0FB' },
+  moodLabel: { color: '#716A82', fontSize: 10, textAlign: 'center', fontWeight: '700' },
+  moodLabelSelected: { color: '#6652A4' },
+  quickThoughtSurface: { gap: 8, padding: 4, borderWidth: 1, borderColor: '#D6CBEF', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  quickThoughtInput: { minHeight: 104, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, color: '#30294B', fontSize: 17, lineHeight: 24, textAlignVertical: 'top' },
+  voiceShortcut: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, marginLeft: 4, marginBottom: 4, borderRadius: 10, backgroundColor: '#F0EBFF' },
+  voiceShortcutText: { color: '#6652A4', fontSize: 14, fontWeight: '800' },
+  homePrimaryButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 16, minHeight: 58, paddingHorizontal: 16, backgroundColor: '#7562B8' },
   homePrimaryButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
-  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 22, backgroundColor: '#FFFFFF' },
-  todayIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F5EF' },
-  todayIconText: { color: '#2A9472', fontSize: 20, fontWeight: '800' },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E3DAF1', backgroundColor: '#F8F5FF' },
+  todayIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9E1FA' },
+  todayIconText: { color: '#6652A4', fontSize: 20, fontWeight: '800' },
   flexGrow: { flex: 1 },
-  todayTitle: { color: '#18233D', fontSize: 17, fontWeight: '800', marginBottom: 3 },
-  todayText: { color: '#758198', fontSize: 14 },
-  rowArrow: { color: '#3563E9', fontSize: 28, lineHeight: 28 },
-  insightSurface: { gap: 12, padding: 22, borderRadius: 24, backgroundColor: '#EEEFFF' },
-  insightEyebrow: { color: '#5962D5', fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
-  insightText: { color: '#18233D', fontSize: 21, lineHeight: 29, fontWeight: '700', letterSpacing: -0.3 },
-  insightAction: { color: '#3563E9', fontSize: 16, fontWeight: '800', marginTop: 4 },
-  bottomNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', minHeight: 68, marginHorizontal: 16, marginBottom: 16, paddingHorizontal: 6, borderRadius: 20, borderWidth: 1, borderColor: '#E9EDF5', backgroundColor: '#FFFFFF' },
+  todayTitle: { color: '#30294B', fontSize: 17, fontWeight: '800', marginBottom: 3 },
+  todayText: { color: '#716A82', fontSize: 14 },
+  rowArrow: { color: '#6652A4', fontSize: 28, lineHeight: 28 },
+  insightSurface: { gap: 12, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#DCD1F3', backgroundColor: '#F3EFFF' },
+  insightHeading: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
+  insightText: { color: '#30294B', fontSize: 19, lineHeight: 27, fontWeight: '700', letterSpacing: -0.25 },
+  insightAction: { color: '#6652A4', fontSize: 15, fontWeight: '800', marginTop: 4 },
+  bottomNavigation: { position: 'relative', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', minHeight: 70, marginHorizontal: 12, marginBottom: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1, borderColor: '#E1DBEC', backgroundColor: '#FFFFFF' },
+  activeTabIndicator: { position: 'absolute', bottom: 6, height: 3, borderRadius: 99, backgroundColor: '#7562B8' },
   bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 56 },
-  bottomLabel: { color: '#6F7B91', fontSize: 12, fontWeight: '700' },
-  bottomLabelActive: { color: '#3563E9' },
+  bottomLabel: { color: '#716A82', fontSize: 12, fontWeight: '700' },
+  bottomLabelActive: { color: '#6652A4' },
   composerContent: { padding: 24, paddingBottom: 44, gap: 18 },
-  composerTitle: { color: '#18233D', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -0.8 },
-  composerSubtitle: { color: '#66738C', fontSize: 17, lineHeight: 25, marginBottom: 4 },
-  composerInput: { minHeight: 260, padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#DCE3F1', backgroundColor: '#FFFFFF', color: '#18233D', fontSize: 17, lineHeight: 25, textAlignVertical: 'top' },
-  voiceCaptureButton: { alignItems: 'center', borderWidth: 1, borderColor: '#BFCBF3', borderRadius: 18, padding: 17, backgroundColor: '#F0F4FF' },
-  voiceCaptureText: { color: '#3563E9', fontSize: 16, fontWeight: '800' },
-  privacyNote: { color: '#7A869B', fontSize: 14, textAlign: 'center', marginTop: 4 },
+  composerTitle: { color: '#30294B', fontSize: 32, lineHeight: 40, fontWeight: '800', letterSpacing: -0.7 },
+  composerSubtitle: { color: '#686177', fontSize: 17, lineHeight: 25, marginBottom: 4 },
+  composerInput: { minHeight: 260, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#D6CBEF', backgroundColor: '#FFFFFF', color: '#30294B', fontSize: 17, lineHeight: 25, textAlignVertical: 'top' },
+  voiceCaptureButton: { alignItems: 'center', borderWidth: 1, borderColor: '#CEC4EC', borderRadius: 16, minHeight: 56, justifyContent: 'center', backgroundColor: '#F7F3FF' },
+  voiceCaptureText: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
+  privacyNote: { color: '#716A82', fontSize: 14, textAlign: 'center', marginTop: 4 },
 });

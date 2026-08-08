@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T00:00:00.000Z",
+  "title": "Design System: LifeOS",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Soft Violet Action", "canonical": "#7562B8", "tonalRamp": ["#30294B", "#4A3E78", "#6652A4", "#7562B8", "#9B8BCC", "#D6CBEF", "#EEE9FF", "#FAF8FF"] },
+      "canvas": { "role": "neutral", "displayName": "Lavender Canvas", "canonical": "#FBF9FF", "tonalRamp": ["#30294B", "#57516D", "#716A82", "#ACA5B7", "#D9D4E0", "#EEEAF3", "#FBF9FF", "#FFFFFF"] }
+    },
+    "motion": [
+      { "name": "navigation-spring", "value": "spring(stiffness:260, damping:24)", "purpose": "Moves the active bottom-navigation indicator." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single action that sends a thought for reflection.",
+      "html": "<button class=\"ds-primary-action\">Поделиться мыслью</button>",
+      "css": ".ds-primary-action{min-height:56px;padding:0 18px;border:0;border-radius:16px;background:#7562B8;color:#fff;font:800 16px system-ui,sans-serif;cursor:pointer}.ds-primary-action:hover{background:#4A3E78}.ds-primary-action:focus-visible{outline:3px solid #D6CBEF;outline-offset:3px}.ds-primary-action:active{background:#4A3E78}"
+    },
+    {
+      "name": "Thought Field",
+      "kind": "input",
+      "refersTo": "thought-field",
+      "description": "A generous field that invites unstructured thought before AI analysis.",
+      "html": "<textarea class=\"ds-thought-field\" placeholder=\"О чём думаешь?\"></textarea>",
+      "css": ".ds-thought-field{box-sizing:border-box;width:100%;min-height:104px;padding:16px;border:1px solid #D6CBEF;border-radius:16px;background:#fff;color:#30294B;font:400 17px/24px system-ui,sans-serif;resize:vertical}.ds-thought-field:focus{outline:3px solid #EEE9FF;border-color:#7562B8}.ds-thought-field::placeholder{color:#7D7593}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-navigation",
+      "description": "Four persistent destinations with one active cobalt state.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item is-active\">Главная</button><button class=\"ds-nav-item\">Дневник</button><button class=\"ds-nav-item\">Цели</button><button class=\"ds-nav-item\">Профиль</button></nav>",
+      "css": ".ds-nav{display:flex;padding:6px 4px;border:1px solid #E1DBEC;border-radius:16px;background:#fff}.ds-nav-item{flex:1;min-height:56px;border:0;border-radius:12px;background:transparent;color:#716A82;font:700 12px system-ui,sans-serif}.ds-nav-item.is-active{background:#EEE9FF;color:#6652A4}.ds-nav-item:focus-visible{outline:3px solid #D6CBEF;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Personal Day Map",
+    "overview": "A calm operating interface for capturing a thought, naming a state and taking a small next step.",
+    "keyCharacteristics": ["Clear hierarchy before decoration.", "Native Android structure.", "One obvious action per screen."],
+    "rules": [{ "name": "The One Action Rule", "body": "Violet belongs to the current primary action and selected destination; it is not decorative background color.", "section": "colors" }],
+    "dos": ["Do place the thought field near the primary action.", "Do preserve native Back behavior and safe-area spacing."],
+    "donts": ["Don't use gradients, glass effects, decorative charts or fake metrics.", "Don't turn every piece of information into a card."]
+  }
+}
