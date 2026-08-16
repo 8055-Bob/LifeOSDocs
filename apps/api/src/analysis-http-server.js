@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 
 const MAX_DIARY_TEXT_LENGTH = 10_000;
 const MAX_REQUEST_BODY_BYTES = 50_000;
+const MAX_AUDIO_BODY_BYTES = 25 * 1024 * 1024;
 
 class InputError extends Error {}
 
@@ -23,6 +24,18 @@ async function readJson(request) {
   } catch {
     throw new InputError('Invalid request body');
   }
+}
+
+async function readBinary(request) {
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of request) {
+    length += chunk.length;
+    if (length > MAX_AUDIO_BODY_BYTES) throw new InputError('Audio file is too large');
+    chunks.push(chunk);
+  }
+  if (length === 0) throw new InputError('Audio file is required');
+  return Buffer.concat(chunks);
 }
 
 function validateDiaryInput(body) {
@@ -50,9 +63,26 @@ function emitTelemetry(telemetry, event, details) {
   }
 }
 
-export function createAnalysisHttpServer({ provider, recordStore = null, telemetry = null }) {
+export function createAnalysisHttpServer({ provider, recordStore = null, telemetry = null, transcriber = null }) {
   return createServer(async (request, response) => {
     if (request.method === 'OPTIONS') return sendJson(response, 204, {});
+
+    if (request.method === 'POST' && request.url === '/v1/transcribe') {
+      try {
+        const accessToken = readBearerToken(request);
+        if (!accessToken) return sendJson(response, 401, { error: 'Authentication is required' });
+        if (!transcriber) return sendJson(response, 503, { error: 'Voice transcription is not configured' });
+        const rawAudio = await readBinary(request);
+        const extension = request.headers['x-lifeos-audio-extension'] === '.m4a' ? '.m4a' : '.mp4';
+        const audio = new Blob([rawAudio], { type: request.headers['content-type'] || 'audio/mp4' });
+        const text = await transcriber.transcribe({ audio, filename: `thought${extension}` });
+        return sendJson(response, 200, { text });
+      } catch (error) {
+        if (error instanceof InputError) return sendJson(response, 400, { error: error.message });
+        console.error(`LifeOS transcription failed: ${error.message}`);
+        return sendJson(response, 400, { error: error.message });
+      }
+    }
 
     if (request.method === 'GET' && request.url === '/v1/diary/records') {
       try {

@@ -29,4 +29,4 @@ LifeOS — мобильный AI-дневник для саморазвития.
 - Node.js API.
 - Supabase Auth и Postgres с RLS.
 - OpenRouter для AI-анализа.
-- faster-whisper для бесплатной локальной расшифровки голоса.
+- Groq Whisper для быстрой расшифровки голоса на бесплатном тарифе (ключ хранится только на сервере LifeOS).

@@ -9,8 +9,10 @@ import { secureSessionStore } from './src/secure-session-store.js';
 import { completeHabit, createHabit, fetchHabits } from './src/supabase-habits-api.js';
 import { createGoal, fetchGoals, updateGoalProgress } from './src/supabase-goals-api.js';
 import { createWeeklyInsights } from './src/weekly-insights.js';
+import { fetchProfile, saveProfile } from './src/supabase-profile-api.js';
+import { moodOptions } from './src/mood-options.js';
 import { RecordingPresets, requestRecordingPermissionsAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
-import { transcribeLocalAudio } from './src/local-transcription-api.js';
+import { transcribeAudio } from './src/groq-transcription-api.js';
 import PagerView from 'react-native-pager-view';
 
 export default function App() {
@@ -36,6 +38,7 @@ export default function App() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState({ displayName: '', currentFocus: '', timezone: '', communicationStyle: 'supportive' });
   const [restoringSession, setRestoringSession] = useState(true);
   const [launchReady, setLaunchReady] = useState(false);
   const pagerRef = useRef(null);
@@ -79,6 +82,17 @@ export default function App() {
       });
 
     return () => { cancelled = true; };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session?.accessToken) {
+      setProfile({ displayName: '', currentFocus: '', timezone: '', communicationStyle: 'supportive' });
+      return;
+    }
+    const config = getSupabasePublicConfig();
+    fetchProfile({ ...config, accessToken: session.accessToken, userId: session.user.id })
+      .then(setProfile)
+      .catch(() => setProfile({ displayName: '', currentFocus: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? '', communicationStyle: 'supportive' }));
   }, [session]);
 
   useEffect(() => {
@@ -147,7 +161,7 @@ export default function App() {
     setVoiceLoading(true);
     try {
       await recorder.stop();
-      const text = await transcribeLocalAudio({ transcriptionUrl: process.env.EXPO_PUBLIC_LIFEOS_TRANSCRIPTION_URL, uri: recorder.uri });
+      const text = await transcribeAudio({ apiUrl: process.env.EXPO_PUBLIC_LIFEOS_API_URL, accessToken: session?.accessToken, uri: recorder.uri });
       setThought((current) => current ? `${current}\n${text}` : text);
     } catch (voiceError) { setError(voiceError.message); }
     finally { setVoiceLoading(false); }
@@ -196,6 +210,12 @@ export default function App() {
     setSession(null);
   }
 
+  async function updateProfile(nextProfile) {
+    const config = getSupabasePublicConfig();
+    const savedProfile = await saveProfile({ ...config, accessToken: session.accessToken, userId: session.user.id, profile: nextProfile });
+    setProfile(savedProfile);
+  }
+
   function openPrimaryTab(tab) {
     setShowResult(false);
     setShowComposer(false);
@@ -226,10 +246,10 @@ export default function App() {
 
   return (
     <PagerView ref={pagerRef} style={styles.pager} initialPage={['home', 'diary', 'goals', 'profile'].indexOf(activeTab)} onPageSelected={(event) => setActiveTab(['home', 'diary', 'goals', 'profile'][event.nativeEvent.position])}>
-      <View key="home" style={styles.pagerPage}><HomeScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
+      <View key="home" style={styles.pagerPage}><HomeScreen profile={profile} mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="diary" style={styles.pagerPage}><HistoryScreen records={createJournalHistoryViewModel(history)} loading={historyLoading} error={historyError} onDelete={removeRecord} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="goals" style={styles.pagerPage}><GoalsScreen goals={goals} onAdd={addGoal} onProgress={setGoalProgress} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
-      <View key="profile" style={styles.pagerPage}><ProfileScreen email={session.user.email} onSignOut={signOut} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
+      <View key="profile" style={styles.pagerPage}><ProfileScreen email={session.user.email} profile={profile} onSave={updateProfile} onSignOut={signOut} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
     </PagerView>
   );
 }
@@ -244,14 +264,15 @@ function LaunchScreen() {
   </SafeAreaView>;
 }
 
-function HomeScreen({ mood, onMoodChange, thought, onThoughtChange, onSubmitThought, loading, habits, history, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
+function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onSubmitThought, loading, habits, history, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
+  const name = profile.displayName?.trim() || 'друг';
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
       <View style={styles.homeHeader}>
-        <View><Text style={styles.brandName}>LifeOS</Text><Text style={styles.homeTitle}>Добрый вечер, Алексей</Text><Text style={styles.homeSubtitle}>Выбери состояние или поделись мыслью — я помогу навести ясность.</Text></View>
-        <Pressable onPress={onOpenProfile} style={styles.avatar}><Text style={styles.avatarText}>А</Text></Pressable>
+        <View><Text style={styles.brandName}>LifeOS</Text><Text style={styles.homeTitle}>Добрый вечер, {name}</Text><Text style={styles.homeSubtitle}>{profile.currentFocus ? `Фокус: ${profile.currentFocus}` : 'Выбери состояние или поделись мыслью — я помогу навести ясность.'}</Text></View>
+        <Pressable onPress={onOpenProfile} style={styles.avatar}><Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text></Pressable>
       </View>
-      <View style={styles.checkInSurface}><Text style={styles.checkInTitle}>Как ты сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /></View>
+      <View style={styles.checkInSurface}><Text style={styles.checkInTitle}>Что ты чувствуешь сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /></View>
       <View style={styles.quickThoughtSurface}>
         <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="О чём думаешь?" placeholderTextColor="#7D7593" style={styles.quickThoughtInput} />
         <Pressable onPress={onOpenComposer} style={styles.voiceShortcut}><Text style={styles.voiceShortcutText}>Рассказать голосом</Text></Pressable>
@@ -265,8 +286,7 @@ function HomeScreen({ mood, onMoodChange, thought, onThoughtChange, onSubmitThou
 }
 
 function MoodPicker({ mood, onChange }) {
-  const moods = ['Тяжело', 'Тревожно', 'Нейтрально', 'Хорошо', 'Отлично'];
-  return <View style={styles.moodRow}>{moods.map((label, index) => <Pressable key={label} onPress={() => onChange(index + 1)} style={[styles.moodChoice, mood === index + 1 && styles.moodSelected]}><View style={[styles.moodDot, mood === index + 1 && styles.moodDotSelected]} /><Text style={[styles.moodLabel, mood === index + 1 && styles.moodLabelSelected]}>{label}</Text></Pressable>)}</View>;
+  return <View style={styles.moodRow}>{moodOptions.map((option) => <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.moodChoice, mood === option.value && styles.moodSelected]}><Text style={styles.moodEmoji}>{option.emoji}</Text><Text style={[styles.moodLabel, mood === option.value && styles.moodLabelSelected]}>{option.label}</Text></Pressable>)}</View>;
 }
 
 function BottomNavigation({ activeTab, onTabChange }) {
@@ -337,8 +357,19 @@ function InsightsScreen({ insights, onClose, activeTab, onTabChange }) {
   return <SafeAreaView style={styles.screen}><View style={styles.flexGrow}><View style={styles.card}><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Неделя</Text><Text style={styles.body}>Записей: {insights.journalCount}</Text><Text style={styles.body}>Среднее настроение: {insights.averageMood ?? 'пока нет данных'}/5</Text><Text style={styles.body}>Привычки сегодня: {insights.habitsCompleted}/{insights.habitsTotal}</Text><Text style={styles.body}>Активные цели: {insights.activeGoals}</Text><Text style={styles.body}>Выполненные цели: {insights.completedGoals}</Text></View></View><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
-function ProfileScreen({ email, onSignOut, onClose, activeTab, onTabChange }) {
-  return <SafeAreaView style={styles.screen}><View style={[styles.card, styles.flexGrow]}><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Профиль</Text><Text style={styles.body}>{email}</Text><Text style={styles.body}>Твои записи, привычки и цели принадлежат только тебе.</Text><Pressable onPress={onSignOut} style={styles.voiceButton}><Text style={styles.voiceButtonText}>Выйти из аккаунта</Text></Pressable></View><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
+function ProfileScreen({ email, profile, onSave, onSignOut, onClose, activeTab, onTabChange }) {
+  const [draft, setDraft] = useState(profile);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => setDraft(profile), [profile]);
+  async function save() {
+    setSaving(true); setError(null); setMessage(null);
+    try { await onSave(draft); setMessage('Профиль сохранён. Я буду учитывать эти настройки в рекомендациях.'); }
+    catch (reason) { setError(reason.message); }
+    finally { setSaving(false); }
+  }
+  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent} keyboardShouldPersistTaps="handled"><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Профиль</Text><View style={styles.resultSection}><Text style={styles.profileLabel}>Почта</Text><Text style={styles.body}>{email}</Text><Text style={styles.profileLabel}>Как к тебе обращаться</Text><TextInput value={draft.displayName} onChangeText={(displayName) => setDraft((current) => ({ ...current, displayName }))} placeholder="Например, Алексей" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Главный фокус сейчас</Text><TextInput value={draft.currentFocus} onChangeText={(currentFocus) => setDraft((current) => ({ ...current, currentFocus }))} placeholder="Например, спокойствие и сон" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Часовой пояс</Text><TextInput value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} placeholder="Например, Asia/Bangkok" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Как общаться</Text><View style={styles.styleOptions}>{[{ id: 'supportive', label: 'Поддерживающе' }, { id: 'balanced', label: 'Бережно и по делу' }, { id: 'direct', label: 'Прямо' }].map((option) => <Pressable key={option.id} onPress={() => setDraft((current) => ({ ...current, communicationStyle: option.id }))} style={[styles.styleOption, draft.communicationStyle === option.id && styles.styleOptionActive]}><Text style={[styles.styleOptionText, draft.communicationStyle === option.id && styles.styleOptionTextActive]}>{option.label}</Text></Pressable>)}</View><Pressable disabled={saving} onPress={save} style={[styles.primaryButton, saving && styles.disabledButton]}><Text style={styles.primaryButtonText}>{saving ? 'Сохраняем…' : 'Сохранить профиль'}</Text></Pressable>{message && <Text style={styles.info}>{message}</Text>}{error && <Text style={styles.error}>{error}</Text>}</View><View style={styles.resultSection}><Text style={styles.body}>Твои записи, привычки и цели принадлежат только тебе.</Text><Pressable onPress={onSignOut} style={styles.voiceButton}><Text style={styles.voiceButtonText}>Выйти из аккаунта</Text></Pressable></View></ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
 function AuthScreen({ onAuthenticated }) {
@@ -457,7 +488,14 @@ const styles = StyleSheet.create({
   launchTagline: { color: '#F3F0FF', fontSize: 15, fontWeight: '600' },
   launchLoader: { position: 'absolute', bottom: 48, width: 92, height: 4, borderRadius: 99, overflow: 'hidden', backgroundColor: '#BEB5E4' },
   launchLoaderActive: { width: 42, height: 4, borderRadius: 99, marginLeft: 25, backgroundColor: '#FFFFFF' },
+  moodEmoji: { fontSize: 22, lineHeight: 28 },
   card: { gap: 14, padding: 24, margin: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  profileLabel: { color: '#4B426A', fontSize: 14, fontWeight: '700', marginTop: 4 },
+  styleOptions: { gap: 8, marginBottom: 6 },
+  styleOption: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FCFBFF' },
+  styleOptionActive: { borderColor: '#7562B8', backgroundColor: '#F0ECFF' },
+  styleOptionText: { color: '#4B426A', fontSize: 15, fontWeight: '600' },
+  styleOptionTextActive: { color: '#52428A' },
   title: { fontSize: 28, fontWeight: '700', color: '#30294B', letterSpacing: -0.3 },
   body: { fontSize: 16, lineHeight: 24, color: '#57516D' },
   section: { fontSize: 16, fontWeight: '700', color: '#30294B', marginTop: 8 },

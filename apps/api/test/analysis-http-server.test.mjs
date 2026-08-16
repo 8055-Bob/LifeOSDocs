@@ -153,3 +153,23 @@ test('deletes only the authenticated user journal record', async (t) => {
   assert.deepEqual(await response.json(), { id: 'record_123', deleted: true });
   assert.deepEqual(deleted, [{ accessToken: 'user-access-token', recordId: 'record_123' }]);
 });
+
+test('transcribes authenticated audio through the configured transcription provider', async (t) => {
+  const requests = [];
+  const server = createAnalysisHttpServer({
+    provider: { analyze: async () => ({}) },
+    transcriber: { transcribe: async (input) => { requests.push(input); return 'Готовая расшифровка'; } },
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/transcribe`, {
+    method: 'POST', headers: { Authorization: 'Bearer user-access-token', 'Content-Type': 'audio/mp4', 'X-LifeOS-Audio-Extension': '.m4a' }, body: 'audio-data',
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { text: 'Готовая расшифровка' });
+  assert.equal(requests[0].filename, 'thought.m4a');
+  assert.equal(await requests[0].audio.text(), 'audio-data');
+});
