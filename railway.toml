@@ -3,7 +3,7 @@ builder = "RAILPACK"
 buildCommand = "pnpm --filter @lifeos/api build"
 
 [deploy]
-startCommand = "pnpm --filter @lifeos/api start"
+startCommand = "node apps/api/src/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
