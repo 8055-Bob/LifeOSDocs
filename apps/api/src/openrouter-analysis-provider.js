@@ -1,4 +1,5 @@
 const requiredFields = ['summary', 'emotions', 'topics', 'reflectionQuestion', 'nextAction'];
+const requiredTextFields = ['summary', 'reflectionQuestion', 'nextAction'];
 
 export class OpenRouterAnalysisProvider {
   constructor({ apiKey, fetchImpl = fetch }) {
@@ -18,7 +19,7 @@ export class OpenRouterAnalysisProvider {
         messages: [
           {
             role: 'system',
-            content: 'Ты — поддерживающий помощник LifeOS. Отвечай только на русском. Не ставь диагнозы и не выдавай предположения за факты. Верни только корректный JSON без Markdown: {"summary": string, "emotions": [{"label": string, "score": number}], "topics": [string], "reflectionQuestion": string, "nextAction": string}.',
+            content: 'Ты — поддерживающий помощник LifeOS. Отвечай только на русском. Не ставь диагнозы и не выдавай предположения за факты. Верни только корректный JSON без Markdown: {"summary": string, "emotions": [{"label": string, "score": number}], "topics": [string], "reflectionQuestion": string, "nextAction": string}. Поля summary, reflectionQuestion и nextAction обязательны и не могут быть пустыми.',
           },
           { role: 'user', content: text },
         ],
@@ -27,7 +28,12 @@ export class OpenRouterAnalysisProvider {
     if (!response.ok) throw new Error(`OpenRouter analysis request failed (status ${response.status})`);
     const payload = await response.json();
     const analysis = JSON.parse(payload.choices?.[0]?.message?.content ?? '{}');
-    if (!requiredFields.every((field) => field in analysis)) throw new Error('OpenRouter returned an incomplete analysis');
+    if (
+      !requiredFields.every((field) => field in analysis)
+      || !requiredTextFields.every((field) => typeof analysis[field] === 'string' && analysis[field].trim())
+    ) {
+      throw new Error('OpenRouter returned an incomplete analysis');
+    }
     return analysis;
   }
 }

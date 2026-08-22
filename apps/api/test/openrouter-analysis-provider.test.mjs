@@ -36,3 +36,24 @@ test('returns a safe status-only error when OpenRouter rejects a request', async
 
   await assert.rejects(() => provider.analyze({ text: 'Личная запись' }), { message: 'OpenRouter analysis request failed (status 429)' });
 });
+
+test('rejects an OpenRouter analysis with an empty reflection question', async () => {
+  const provider = new OpenRouterAnalysisProvider({
+    apiKey: 'openrouter-secret',
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        summary: 'Завтра предстоит поездка.',
+        emotions: [],
+        topics: ['поездка'],
+        reflectionQuestion: '',
+        nextAction: 'Собрать вещи заранее.',
+      }) } }] }),
+    }),
+  });
+
+  await assert.rejects(
+    () => provider.analyze({ text: 'Завтра еду в Визаран и переживаю.' }),
+    { message: 'OpenRouter returned an incomplete analysis' },
+  );
+});
