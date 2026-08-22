@@ -67,6 +67,10 @@ export function createAnalysisHttpServer({ provider, recordStore = null, telemet
   return createServer(async (request, response) => {
     if (request.method === 'OPTIONS') return sendJson(response, 204, {});
 
+    if (request.method === 'GET' && request.url === '/health') {
+      return sendJson(response, 200, { status: 'ok' });
+    }
+
     if (request.method === 'POST' && request.url === '/v1/transcribe') {
       try {
         const accessToken = readBearerToken(request);

@@ -2,6 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAnalysisHttpServer } from '../src/analysis-http-server.js';
 
+test('returns an OK health response for Railway', async (t) => {
+  const server = createAnalysisHttpServer({ provider: { analyze: async () => ({}) } });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/health`);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: 'ok' });
+});
+
 test('accepts a diary thought and returns the provider analysis over HTTP', async () => {
   const server = createAnalysisHttpServer({
     provider: { analyze: async ({ text }) => ({ summary: `Summary: ${text}`, emotions: [], topics: [], reflectionQuestion: 'Question?', nextAction: 'Rest.' }) },
