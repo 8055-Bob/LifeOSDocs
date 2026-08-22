@@ -28,5 +28,9 @@ LifeOS — мобильный AI-дневник для саморазвития.
 - Expo / React Native.
 - Node.js API.
 - Supabase Auth и Postgres с RLS.
-- OpenRouter для AI-анализа.
-- Groq Whisper для быстрой расшифровки голоса на бесплатном тарифе (ключ хранится только на сервере LifeOS).
+- OpenRouter для AI-анализа: модель `openrouter/free`.
+- Groq Whisper для быстрой расшифровки голоса: модель `whisper-large-v3-turbo` (ключ хранится только на сервере LifeOS).
+
+## Публичный API
+
+Серверная часть опубликована на Railway: https://lifeosdocs-production.up.railway.app/health
