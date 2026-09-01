@@ -238,7 +238,7 @@ export default function App() {
   }
 
   if (showInsights) return <InsightsScreen insights={weekly} onClose={() => setShowInsights(false)} onOpenHabits={() => { setShowInsights(false); setShowHabits(true); }} activeTab={activeTab} onTabChange={openPrimaryTab} />;
-  if (showComposer) return <ComposerScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onClose={() => setShowComposer(false)} onSubmit={submitThought} onToggleVoice={toggleVoiceRecording} isRecording={recorderState.isRecording} voiceLoading={voiceLoading} loading={loading} error={error} activeTab={activeTab} onTabChange={openPrimaryTab} />;
+  if (showComposer) return <ComposerScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onClose={() => setShowComposer(false)} onSubmit={submitThought} onToggleVoice={toggleVoiceRecording} isRecording={recorderState.isRecording} recordingDurationMillis={recorderState.durationMillis} voiceLoading={voiceLoading} loading={loading} error={error} activeTab={activeTab} onTabChange={openPrimaryTab} />;
 
   if (restoringSession || !launchReady) {
     return <LaunchScreen />;
@@ -289,13 +289,20 @@ function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onS
   </SafeAreaView>;
 }
 
-function ComposerScreen({ mood, onMoodChange, thought, onThoughtChange, onClose, onSubmit, onToggleVoice, isRecording, voiceLoading, loading, error, activeTab, onTabChange }) {
+function formatRecordingDuration(durationMillis) {
+  const totalSeconds = Math.floor(Math.max(0, Number.isFinite(durationMillis) ? durationMillis : 0) / 1000);
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+function ComposerScreen({ mood, onMoodChange, thought, onThoughtChange, onClose, onSubmit, onToggleVoice, isRecording, recordingDurationMillis, voiceLoading, loading, error, activeTab, onTabChange }) {
   return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.composerContent} keyboardShouldPersistTaps="handled">
     <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>‹ Назад</Text></Pressable>
     <View style={styles.composerHeading}><Text style={styles.composerTitle}>Новая мысль</Text><Text style={styles.composerSubtitle}>Расскажи как есть — я помогу навести ясность.</Text></View>
     <View style={styles.composerMoodPicker}><MoodPicker mood={mood} onChange={onMoodChange} /></View>
     <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="Что сейчас у тебя в голове?" placeholderTextColor="#7D7593" style={styles.composerInput} />
-    <View style={styles.recordingControl}><Pressable disabled={voiceLoading} onPress={onToggleVoice} style={[styles.recordingOrbitOuter, voiceLoading && styles.disabledButton]}><View style={styles.recordingOrbitMiddle}><View style={[styles.recordingOrbitCore, isRecording && styles.recordingOrbitCoreActive]}><Text style={styles.recordingOrbitLabel}>{isRecording ? '■' : '🎙'}</Text></View></View></Pressable><Text style={styles.voiceCaptureText}>{voiceLoading ? 'Расшифровываем…' : isRecording ? 'Остановить запись' : 'Записать голосом'}</Text>{isRecording && <Text style={styles.recordingIndicator}>Идёт запись — говори, когда будешь готов.</Text>}</View>
+    <View style={styles.recordingControl}><Pressable disabled={voiceLoading} onPress={onToggleVoice} style={[styles.recordingOrbitOuter, voiceLoading && styles.disabledButton]}><View style={styles.recordingOrbitMiddle}><View style={[styles.recordingOrbitCore, isRecording && styles.recordingOrbitCoreActive]}><Text style={styles.recordingOrbitLabel}>{isRecording ? '■' : '🎙'}</Text></View></View></Pressable><Text style={styles.voiceCaptureText}>{voiceLoading ? 'Расшифровываем…' : isRecording ? 'Остановить запись' : 'Записать голосом'}</Text>{isRecording && <><Text style={styles.recordingTimer}>{formatRecordingDuration(recordingDurationMillis)}</Text><Text style={styles.recordingIndicator}>Идёт запись — говори, когда будешь готов.</Text></>}</View>
     <Pressable disabled={loading || !thought.trim()} onPress={onSubmit} style={[styles.primaryButton, (!thought.trim() || loading) && styles.disabledButton]}><Text style={styles.primaryButtonText}>{loading ? 'Анализируем…' : 'Получить разбор'}</Text></Pressable>
     {error && <Text style={styles.error}>{error}</Text>}
     <Text style={styles.privacyNote}>Твои мысли остаются твоими.</Text>
@@ -514,6 +521,7 @@ const styles = StyleSheet.create({
   recordingButton: { borderColor: '#B42318', backgroundColor: '#FFF1F2' },
   recordingButtonText: { color: '#B42318' },
   recordingIndicator: { color: '#B42318', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  recordingTimer: { color: '#B42318', fontSize: 22, fontVariant: ['tabular-nums'], fontWeight: '800', letterSpacing: 1 },
   historyButton: { alignSelf: 'flex-start', paddingVertical: 4 },
   historyButtonText: { color: '#6652A4', fontSize: 15, fontWeight: '600' },
   error: { color: '#B42318', fontSize: 14, lineHeight: 20 },
