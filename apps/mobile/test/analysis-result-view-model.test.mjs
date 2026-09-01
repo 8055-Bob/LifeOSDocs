@@ -18,3 +18,16 @@ test('projects a diary analysis into sections for the result screen', () => {
   assert.equal(result.reflectionQuestion, 'Что помогло тебе почувствовать поддержку?');
   assert.equal(result.nextAction, 'Напиши другу одно короткое сообщение.');
 });
+
+test('uses clear placeholders for missing legacy reflection fields', () => {
+  const result = createAnalysisResultViewModel({
+    summary: 'Запись сохранена.',
+    emotions: [],
+    topics: [],
+    reflectionQuestion: '',
+    nextAction: '',
+  });
+
+  assert.equal(result.reflectionQuestion, 'Вопрос пока не сформирован — попробуй создать новую запись.');
+  assert.equal(result.nextAction, 'Небольшой шаг пока не сформирован — попробуй создать новую запись.');
+});
