@@ -11,7 +11,8 @@ import { createGoal, fetchGoals, updateGoalProgress } from './src/supabase-goals
 import { createWeeklyInsights } from './src/weekly-insights.js';
 import { fetchProfile, saveProfile } from './src/supabase-profile-api.js';
 import { primaryTabs } from './src/primary-navigation.js';
-import { AppCard, BottomNavigation, MoodPicker } from './src/mobile-ui.js';
+import { AppCard, BottomNavigation, MoodPicker, ScreenHeader } from './src/mobile-ui.js';
+import { moodOptions } from './src/mood-options.js';
 import { RecordingPresets, requestRecordingPermissionsAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { transcribeAudio } from './src/groq-transcription-api.js';
 import PagerView from 'react-native-pager-view';
@@ -310,18 +311,18 @@ function HabitsScreen({ habits, onAdd, onComplete, onClose, activeTab, onTabChan
   async function complete(id) {
     try { await onComplete(id); setError(null); } catch (reason) { setError(reason.message); }
   }
-  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent}>
-    <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable>
-    <Text style={styles.resultTitle}>Привычки</Text>
-    <View style={styles.resultSection}>
+  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent} keyboardShouldPersistTaps="handled">
+    <ScreenHeader title="Привычки" onBack={onClose} backLabel="← На главную" />
+    <AppCard style={styles.formCard}>
+      <Text style={styles.cardEyebrow}>Новая привычка</Text>
       <TextInput value={name} onChangeText={setName} placeholder="Новая привычка" placeholderTextColor="#7D7593" style={styles.input} />
       <Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Добавить привычку</Text></Pressable>
       {error && <Text style={styles.error}>{error}</Text>}
-    </View>
-    {habits.length === 0 ? <Text style={styles.body}>Добавь первую привычку, которую хочешь выполнять каждый день.</Text> : habits.map((habit) => <View key={habit.id} style={styles.resultSection}>
-      <Text style={styles.body}>{habit.name}</Text><Text style={styles.historyDate}>Серия: {habit.streak} дн.</Text>
+    </AppCard>
+    {habits.length === 0 ? <AppCard style={styles.emptyCard}><Text style={styles.body}>Добавь первую привычку, которую хочешь выполнять каждый день.</Text></AppCard> : habits.map((habit) => <AppCard key={habit.id} style={[styles.habitCard, habit.completedToday && styles.habitCardCompleted]}>
+      <View style={styles.cardHeader}><View style={styles.flexGrow}><Text style={styles.cardTitle}>{habit.name}</Text><Text style={styles.historyDate}>Серия: {habit.streak} дн.</Text></View><View style={[styles.completionBadge, habit.completedToday && styles.completionBadgeDone]}><Text style={[styles.completionBadgeText, habit.completedToday && styles.completionBadgeTextDone]}>{habit.completedToday ? 'Готово' : 'Сегодня'}</Text></View></View>
       <Pressable disabled={habit.completedToday} onPress={() => complete(habit.id)} style={[styles.primaryButton, habit.completedToday && styles.disabledButton]}><Text style={styles.primaryButtonText}>{habit.completedToday ? 'Выполнено сегодня' : 'Отметить выполнение'}</Text></Pressable>
-    </View>)}
+    </AppCard>)}
   </ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
@@ -329,10 +330,13 @@ function GoalsScreen({ goals, onAdd, onProgress, onClose, activeTab, onTabChange
   const [title, setTitle] = useState(''); const [targetDate, setTargetDate] = useState(''); const [error, setError] = useState(null);
   async function add() { try { await onAdd(title, targetDate); setTitle(''); setTargetDate(''); setError(null); } catch (reason) { setError(reason.message); } }
   async function progress(goal) { try { await onProgress(goal.id, Math.min(100, goal.progress + 10)); setError(null); } catch (reason) { setError(reason.message); } }
-  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent}>
-    <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Цели</Text>
-    <View style={styles.resultSection}><TextInput value={title} onChangeText={setTitle} placeholder="Новая цель" placeholderTextColor="#7D7593" style={styles.input} /><TextInput value={targetDate} onChangeText={setTargetDate} placeholder="Срок: ГГГГ-ММ-ДД (необязательно)" placeholderTextColor="#7D7593" style={styles.input} /><Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Создать цель</Text></Pressable>{error && <Text style={styles.error}>{error}</Text>}</View>
-    {goals.length === 0 ? <Text style={styles.body}>Добавь цель, к которой хочешь двигаться.</Text> : goals.map((goal) => <View key={goal.id} style={styles.resultSection}><Text style={styles.body}>{goal.title}</Text><Text style={styles.historyDate}>{goal.progress}%{goal.targetDate ? ` · до ${goal.targetDate}` : ''}</Text><Pressable disabled={goal.status === 'completed'} onPress={() => progress(goal)} style={[styles.primaryButton, goal.status === 'completed' && styles.disabledButton]}><Text style={styles.primaryButtonText}>{goal.status === 'completed' ? 'Цель выполнена' : '+10% прогресса'}</Text></Pressable></View>)}
+  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent} keyboardShouldPersistTaps="handled">
+    <ScreenHeader title="Цели" onBack={onClose} backLabel="← На главную" />
+    <AppCard style={styles.formCard}><Text style={styles.cardEyebrow}>Новая цель</Text><TextInput value={title} onChangeText={setTitle} placeholder="Новая цель" placeholderTextColor="#7D7593" style={styles.input} /><TextInput value={targetDate} onChangeText={setTargetDate} placeholder="Срок: ГГГГ-ММ-ДД (необязательно)" placeholderTextColor="#7D7593" style={styles.input} /><Pressable onPress={add} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Создать цель</Text></Pressable>{error && <Text style={styles.error}>{error}</Text>}</AppCard>
+    {goals.length === 0 ? <AppCard style={styles.emptyCard}><Text style={styles.body}>Добавь цель, к которой хочешь двигаться.</Text></AppCard> : goals.map((goal) => {
+      const progressValue = Math.max(0, Math.min(100, Number(goal.progress) || 0));
+      return <AppCard key={goal.id} style={styles.goalCard}><View style={styles.cardHeader}><Text style={[styles.cardTitle, styles.flexGrow]}>{goal.title}</Text><Text style={styles.goalProgressValue}>{progressValue}%</Text></View><Text style={styles.historyDate}>{goal.targetDate ? `до ${goal.targetDate}` : 'Без срока'}</Text><View style={styles.goalProgressTrack}><View style={[styles.goalProgressFill, { width: `${progressValue}%` }]} /></View><Pressable disabled={goal.status === 'completed'} onPress={() => progress(goal)} style={[styles.primaryButton, goal.status === 'completed' && styles.disabledButton]}><Text style={styles.primaryButtonText}>{goal.status === 'completed' ? 'Цель выполнена' : '+10% прогресса'}</Text></Pressable></AppCard>;
+    })}
   </ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
@@ -352,7 +356,7 @@ function ProfileScreen({ email, profile, onSave, onSignOut, onClose, activeTab, 
     catch (reason) { setError(reason.message); }
     finally { setSaving(false); }
   }
-  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent} keyboardShouldPersistTaps="handled"><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Профиль</Text><View style={styles.resultSection}><Text style={styles.profileLabel}>Почта</Text><Text style={styles.body}>{email}</Text><Text style={styles.profileLabel}>Как к тебе обращаться</Text><TextInput value={draft.displayName} onChangeText={(displayName) => setDraft((current) => ({ ...current, displayName }))} placeholder="Например, Алексей" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Главный фокус сейчас</Text><TextInput value={draft.currentFocus} onChangeText={(currentFocus) => setDraft((current) => ({ ...current, currentFocus }))} placeholder="Например, спокойствие и сон" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Часовой пояс</Text><TextInput value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} placeholder="Например, Asia/Bangkok" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Как общаться</Text><View style={styles.styleOptions}>{[{ id: 'supportive', label: 'Поддерживающе' }, { id: 'balanced', label: 'Бережно и по делу' }, { id: 'direct', label: 'Прямо' }].map((option) => <Pressable key={option.id} onPress={() => setDraft((current) => ({ ...current, communicationStyle: option.id }))} style={[styles.styleOption, draft.communicationStyle === option.id && styles.styleOptionActive]}><Text style={[styles.styleOptionText, draft.communicationStyle === option.id && styles.styleOptionTextActive]}>{option.label}</Text></Pressable>)}</View><Pressable disabled={saving} onPress={save} style={[styles.primaryButton, saving && styles.disabledButton]}><Text style={styles.primaryButtonText}>{saving ? 'Сохраняем…' : 'Сохранить профиль'}</Text></Pressable>{message && <Text style={styles.info}>{message}</Text>}{error && <Text style={styles.error}>{error}</Text>}</View><View style={styles.resultSection}><Text style={styles.body}>Твои записи, привычки и цели принадлежат только тебе.</Text><Pressable onPress={onSignOut} style={styles.voiceButton}><Text style={styles.voiceButtonText}>Выйти из аккаунта</Text></Pressable></View></ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
+  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.resultContent} keyboardShouldPersistTaps="handled"><ScreenHeader title="Профиль" onBack={onClose} backLabel="← На главную" /><AppCard style={styles.profileGroup}><Text style={styles.cardEyebrow}>Учётная запись</Text><Text style={styles.profileLabel}>Почта</Text><Text style={styles.body}>{email}</Text></AppCard><AppCard style={styles.profileGroup}><Text style={styles.cardEyebrow}>О тебе</Text><Text style={styles.profileLabel}>Как к тебе обращаться</Text><TextInput value={draft.displayName} onChangeText={(displayName) => setDraft((current) => ({ ...current, displayName }))} placeholder="Например, Алексей" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Главный фокус сейчас</Text><TextInput value={draft.currentFocus} onChangeText={(currentFocus) => setDraft((current) => ({ ...current, currentFocus }))} placeholder="Например, спокойствие и сон" placeholderTextColor="#7D7593" style={styles.input} /><Text style={styles.profileLabel}>Часовой пояс</Text><TextInput value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} placeholder="Например, Asia/Bangkok" placeholderTextColor="#7D7593" style={styles.input} /></AppCard><AppCard style={styles.profileGroup}><Text style={styles.cardEyebrow}>Общение</Text><Text style={styles.profileLabel}>Как общаться</Text><View style={styles.styleOptions}>{[{ id: 'supportive', label: 'Поддерживающе' }, { id: 'balanced', label: 'Бережно и по делу' }, { id: 'direct', label: 'Прямо' }].map((option) => <Pressable key={option.id} onPress={() => setDraft((current) => ({ ...current, communicationStyle: option.id }))} style={[styles.styleOption, draft.communicationStyle === option.id && styles.styleOptionActive]}><Text style={[styles.styleOptionText, draft.communicationStyle === option.id && styles.styleOptionTextActive]}>{option.label}</Text></Pressable>)}</View><Pressable disabled={saving} onPress={save} style={[styles.primaryButton, saving && styles.disabledButton]}><Text style={styles.primaryButtonText}>{saving ? 'Сохраняем…' : 'Сохранить профиль'}</Text></Pressable>{message && <Text style={styles.info}>{message}</Text>}{error && <Text style={styles.error}>{error}</Text>}</AppCard><AppCard style={styles.profileGroup}><Text style={styles.body}>Твои записи, привычки и цели принадлежат только тебе.</Text><Pressable onPress={onSignOut} style={styles.voiceButton}><Text style={styles.voiceButtonText}>Выйти из аккаунта</Text></Pressable></AppCard></ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
 function AuthScreen({ onAuthenticated }) {
@@ -389,7 +393,7 @@ function AuthScreen({ onAuthenticated }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.card}>
+      <View style={[styles.card, styles.authCard]}>
         <Text style={styles.title}>LifeOS</Text>
         <Text style={styles.body}>{mode === 'signin' ? 'Войди, чтобы твои записи были доступны только тебе.' : 'Создай аккаунт для личного и защищённого дневника.'}</Text>
         <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" placeholderTextColor="#7D7593" style={styles.input} />
@@ -409,17 +413,15 @@ function AnalysisScreen({ result, onClose, activeTab, onTabChange }) {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.resultContent}>
-        <Pressable onPress={onClose} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← На главную</Text>
-        </Pressable>
-        <Text style={styles.resultTitle}>{result.title}</Text>
+        <Text style={styles.brandName}>LifeOS</Text>
+        <ScreenHeader title={result.title} onBack={onClose} backLabel="← На главную" />
         <ResultSection title="Краткий конспект"><Text style={styles.body}>{result.summary}</Text></ResultSection>
-        {result.emotions.length > 0 && <ResultSection title="Эмоции"><View style={styles.tagRow}>{result.emotions.map((emotion) => (
+        <ResultSection title="Эмоции"><View style={styles.tagRow}>{result.emotions.length > 0 ? result.emotions.map((emotion) => (
           <View key={emotion.label} style={styles.emotionTag}><Text style={styles.tagText}>{emotion.label} · {emotion.percentage}%</Text></View>
-        ))}</View></ResultSection>}
-        {result.topics.length > 0 && <ResultSection title="Главные темы"><View style={styles.tagRow}>{result.topics.map((topic) => (
+        )) : <Text style={styles.body}>Эмоции пока не определены.</Text>}</View></ResultSection>
+        <ResultSection title="Главные темы"><View style={styles.tagRow}>{result.topics.length > 0 ? result.topics.map((topic) => (
           <View key={topic} style={styles.topicTag}><Text style={styles.tagText}>{topic}</Text></View>
-        ))}</View></ResultSection>}
+        )) : <Text style={styles.body}>Темы пока не определены.</Text>}</View></ResultSection>
         <ResultSection title="Вопрос для размышления"><Text style={styles.body}>{result.reflectionQuestion}</Text></ResultSection>
         <ResultSection title="Маленький шаг на сегодня" highlighted><Text style={styles.body}>{result.nextAction}</Text></ResultSection>
       </ScrollView>
@@ -436,22 +438,22 @@ function HistoryScreen({ records, loading, error, onDelete, onClose, activeTab, 
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.resultContent}>
-        <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable>
-        <Text style={styles.resultTitle}>История</Text>
-        {loading && <Text style={styles.body}>Загружаем записи…</Text>}
+        <Text style={styles.brandName}>LifeOS</Text>
+        <ScreenHeader title="История" onBack={onClose} backLabel="← На главную" />
+        {loading && <AppCard style={styles.emptyCard}><Text style={styles.body}>Загружаем записи…</Text></AppCard>}
         {error && <Text style={styles.error}>{error}</Text>}
         {records.length === 0
-          ? <Text style={styles.body}>Здесь появятся твои записи после AI-анализа.</Text>
-          : records.map((record) => <View key={record.id} style={styles.resultSection}>
-            <Text style={styles.historyDate}>{record.dateLabel}{record.mood ? ` · настроение ${record.mood}/5` : ''}</Text>
-            <Text style={styles.body}>{record.summary ?? record.preview}</Text>
+          ? <AppCard style={styles.emptyCard}><Text style={styles.body}>Здесь появятся твои записи после AI-анализа.</Text></AppCard>
+          : records.map((record) => <Pressable key={record.id} style={({ pressed }) => [styles.historyCard, pressed && styles.historyCardPressed]}>
+            <View style={styles.cardHeader}><View style={styles.flexGrow}><Text style={styles.historyDate}>{record.dateLabel}</Text><Text style={styles.historyPreview} numberOfLines={2}>{record.preview}</Text></View>{record.mood && <View style={styles.historyMood}><Text style={styles.historyMoodEmoji}>{moodOptions.find((option) => option.value === record.mood)?.emoji}</Text></View>}</View>
+            {record.summary && <Text style={styles.historySummary} numberOfLines={3}>{record.summary}</Text>}
             <Pressable onPress={() => Alert.alert('Удалить запись?', 'Текст записи и её AI-анализ будут удалены без возможности восстановления.', [
               { text: 'Отмена', style: 'cancel' },
               { text: 'Удалить', style: 'destructive', onPress: () => onDelete(record.id) },
             ])} style={styles.deleteButton}>
               <Text style={styles.deleteButtonText}>Удалить</Text>
             </Pressable>
-          </View>)}
+          </Pressable>)}
       </ScrollView>
       <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
     </SafeAreaView>
@@ -473,6 +475,23 @@ const styles = StyleSheet.create({
   launchLoaderActive: { width: 42, height: 4, borderRadius: 99, marginLeft: 25, backgroundColor: '#FFFFFF' },
   moodEmoji: { fontSize: 22, lineHeight: 28 },
   card: { gap: 14, padding: 24, margin: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  authCard: { marginTop: 80, shadowColor: '#51406F', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 3 },
+  formCard: { gap: 12, padding: 18 },
+  emptyCard: { padding: 18 },
+  profileGroup: { gap: 12, padding: 18 },
+  cardEyebrow: { color: '#6652A4', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  cardTitle: { color: '#30294B', fontSize: 18, lineHeight: 24, fontWeight: '800' },
+  habitCard: { gap: 14, padding: 18 },
+  habitCardCompleted: { borderColor: '#C7E7D7', backgroundColor: '#FCFFFD' },
+  completionBadge: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#F0ECFF' },
+  completionBadgeDone: { backgroundColor: '#E6F5EC' },
+  completionBadgeText: { color: '#6652A4', fontSize: 12, fontWeight: '800' },
+  completionBadgeTextDone: { color: '#1E6A4E' },
+  goalCard: { gap: 12, padding: 18 },
+  goalProgressValue: { color: '#6652A4', fontSize: 18, fontWeight: '800' },
+  goalProgressTrack: { height: 8, overflow: 'hidden', borderRadius: 99, backgroundColor: '#EEE9F7' },
+  goalProgressFill: { height: '100%', borderRadius: 99, backgroundColor: '#7562B8' },
   profileLabel: { color: '#4B426A', fontSize: 14, fontWeight: '700', marginTop: 4 },
   styleOptions: { gap: 8, marginBottom: 6 },
   styleOption: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FCFBFF' },
@@ -512,6 +531,12 @@ const styles = StyleSheet.create({
   topicTag: { backgroundColor: '#EAF5F0', borderRadius: 99, paddingHorizontal: 12, paddingVertical: 7 },
   tagText: { color: '#57516D', fontSize: 14, fontWeight: '600' },
   historyDate: { color: '#716A82', fontSize: 14, fontWeight: '600' },
+  historyCard: { gap: 12, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  historyCardPressed: { opacity: 0.82, backgroundColor: '#F8F5FF' },
+  historyMood: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0ECFF' },
+  historyMoodEmoji: { fontSize: 22, lineHeight: 28 },
+  historyPreview: { color: '#30294B', fontSize: 16, lineHeight: 23, fontWeight: '700', marginTop: 5 },
+  historySummary: { color: '#57516D', fontSize: 15, lineHeight: 22 },
   deleteButton: { alignSelf: 'flex-start', paddingVertical: 4 },
   deleteButtonText: { color: '#B42318', fontSize: 14, fontWeight: '600' },
   homeContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 128, gap: 16 },
