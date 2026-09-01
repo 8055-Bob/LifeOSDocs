@@ -48,6 +48,21 @@ test('reports no weekly activity when the only record is old', () => {
   assert.ok(result.moodTimeline.every(({ mood }) => mood === null));
 });
 
+test('reports no weekly activity for an empty aggregate', () => {
+  const result = createWeeklyInsights({
+    referenceDate: '2026-09-01T12:00:00.000Z',
+    records: [],
+    habits: [],
+    goals: [],
+  });
+
+  assert.equal(result.journalCount, 0);
+  assert.equal(result.averageMood, null);
+  assert.equal(result.hasWeeklyActivity, false);
+  assert.equal(result.moodTimeline.length, 7);
+  assert.ok(result.moodTimeline.every(({ mood }) => mood === null));
+});
+
 test('reports weekly activity for a record-only aggregate', () => {
   const result = createWeeklyInsights({
     referenceDate: '2026-09-01T12:00:00.000Z',
