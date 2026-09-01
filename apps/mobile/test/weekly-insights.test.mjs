@@ -33,10 +33,10 @@ test('keeps only the seven-day window and uses the latest mood per day', () => {
   assert.equal(result.hasWeeklyActivity, true);
 });
 
-test('reports no weekly activity for an empty aggregate', () => {
+test('reports no weekly activity when the only record is old', () => {
   const result = createWeeklyInsights({
     referenceDate: '2026-09-01T12:00:00.000Z',
-    records: [],
+    records: [{ id: 'old', createdAt: '2026-08-25T12:00:00.000Z', mood: 5 }],
     habits: [],
     goals: [],
   });
