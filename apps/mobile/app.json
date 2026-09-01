@@ -1,13 +1,19 @@
 {
   "expo": {
     "name": "LifeOS",
-    "slug": "lifeos",
+    "slug": "bob",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
       "expo-secure-store",
       "expo-audio"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f94acd0c-2972-47a0-918e-5365477bb13b"
+      }
+    },
+    "owner": "bob-8055s-team"
   }
 }
