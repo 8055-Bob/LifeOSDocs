@@ -11,7 +11,7 @@ import { createGoal, fetchGoals, updateGoalProgress } from './src/supabase-goals
 import { createWeeklyInsights } from './src/weekly-insights.js';
 import { fetchProfile, saveProfile } from './src/supabase-profile-api.js';
 import { primaryTabs } from './src/primary-navigation.js';
-import { BottomNavigation, MoodPicker } from './src/mobile-ui.js';
+import { AppCard, BottomNavigation, MoodPicker } from './src/mobile-ui.js';
 import { RecordingPresets, requestRecordingPermissionsAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { transcribeAudio } from './src/groq-transcription-api.js';
 import PagerView from 'react-native-pager-view';
@@ -217,6 +217,8 @@ export default function App() {
     setProfile(savedProfile);
   }
 
+  const weekly = createWeeklyInsights({ records: history, habits, goals });
+
   function openPrimaryTab(tab) {
     setShowResult(false);
     setShowComposer(false);
@@ -234,7 +236,7 @@ export default function App() {
     return <HabitsScreen habits={habits} onAdd={addHabit} onComplete={markHabitComplete} onClose={() => setShowHabits(false)} activeTab={activeTab} onTabChange={openPrimaryTab} />;
   }
 
-  if (showInsights) return <InsightsScreen insights={createWeeklyInsights({ records: history, habits, goals })} onClose={() => setShowInsights(false)} activeTab={activeTab} onTabChange={openPrimaryTab} />;
+  if (showInsights) return <InsightsScreen insights={weekly} onClose={() => setShowInsights(false)} onOpenHabits={() => { setShowInsights(false); setShowHabits(true); }} activeTab={activeTab} onTabChange={openPrimaryTab} />;
   if (showComposer) return <ComposerScreen mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onClose={() => setShowComposer(false)} onSubmit={submitThought} onToggleVoice={toggleVoiceRecording} isRecording={recorderState.isRecording} voiceLoading={voiceLoading} loading={loading} error={error} activeTab={activeTab} onTabChange={openPrimaryTab} />;
 
   if (restoringSession || !launchReady) {
@@ -247,7 +249,7 @@ export default function App() {
 
   return (
     <PagerView ref={pagerRef} style={styles.pager} initialPage={primaryTabs.map((item) => item.id).indexOf(activeTab)} onPageSelected={(event) => setActiveTab(primaryTabs.map((item) => item.id)[event.nativeEvent.position])}>
-      <View key="home" style={styles.pagerPage}><HomeScreen profile={profile} mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
+      <View key="home" style={styles.pagerPage}><HomeScreen profile={profile} mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} weekly={weekly} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="diary" style={styles.pagerPage}><HistoryScreen records={createJournalHistoryViewModel(history)} loading={historyLoading} error={historyError} onDelete={removeRecord} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="goals" style={styles.pagerPage}><GoalsScreen goals={goals} onAdd={addGoal} onProgress={setGoalProgress} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="profile" style={styles.pagerPage}><ProfileScreen email={session.user.email} profile={profile} onSave={updateProfile} onSignOut={signOut} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
@@ -265,7 +267,7 @@ function LaunchScreen() {
   </SafeAreaView>;
 }
 
-function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onSubmitThought, loading, habits, history, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
+function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onSubmitThought, loading, habits, history, weekly, onOpenComposer, onOpenHabits, onOpenInsights, onOpenProfile, activeTab, onTabChange }) {
   const name = profile.displayName?.trim() || 'друг';
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
@@ -273,14 +275,14 @@ function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onS
         <View><Text style={styles.brandName}>LifeOS</Text><Text style={styles.homeTitle}>Добрый вечер, {name}</Text><Text style={styles.homeSubtitle}>{profile.currentFocus ? `Фокус: ${profile.currentFocus}` : 'Выбери состояние или поделись мыслью — я помогу навести ясность.'}</Text></View>
         <Pressable onPress={onOpenProfile} style={styles.avatar}><Text style={styles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text></Pressable>
       </View>
-      <View style={styles.checkInSurface}><Text style={styles.checkInTitle}>Что ты чувствуешь сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /></View>
-      <View style={styles.quickThoughtSurface}>
+      <AppCard style={styles.checkInSurface}><Text style={styles.checkInTitle}>Что ты чувствуешь сейчас?</Text><MoodPicker mood={mood} onChange={onMoodChange} /></AppCard>
+      <AppCard style={styles.quickThoughtSurface}>
         <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="О чём думаешь?" placeholderTextColor="#7D7593" style={styles.quickThoughtInput} />
         <Pressable onPress={onOpenComposer} style={styles.voiceShortcut}><Text style={styles.voiceShortcutText}>Рассказать голосом</Text></Pressable>
-      </View>
+      </AppCard>
       <Pressable disabled={loading || !thought.trim()} onPress={onSubmitThought} style={[styles.homePrimaryButton, (!thought.trim() || loading) && styles.disabledButton]}><Text style={styles.homePrimaryButtonText}>{loading ? 'Анализируем…' : 'Поделиться мыслью'}</Text></Pressable>
-      <Pressable onPress={onOpenHabits} style={styles.todayRow}><View style={styles.todayIcon}><Text style={styles.todayIconText}>✓</Text></View><View style={styles.flexGrow}><Text style={styles.todayTitle}>Сегодня</Text><Text style={styles.todayText}>Привычки · {habits.filter((habit) => habit.completedToday).length} из {habits.length || 1}</Text></View><Text style={styles.rowArrow}>›</Text></Pressable>
-      <Pressable onPress={onOpenInsights} style={styles.insightSurface}><Text style={styles.insightHeading}>Инсайт дня</Text><Text style={styles.insightText}>{history.length > 0 ? 'Твои записи уже начинают складываться в личную картину.' : 'Поделись первой мыслью — я помогу увидеть важное.'}</Text><Text style={styles.insightAction}>Посмотреть разбор  ›</Text></Pressable>
+      <Pressable onPress={onOpenHabits}><AppCard style={styles.todayRow}><View style={styles.todayIcon}><Text style={styles.todayIconText}>✓</Text></View><View style={styles.flexGrow}><Text style={styles.todayTitle}>Сегодня</Text><Text style={styles.todayText}>Привычки · {weekly.habitsCompleted} из {weekly.habitsTotal}</Text></View><Text style={styles.rowArrow}>›</Text></AppCard></Pressable>
+      <AppCard style={styles.weekCard}><Text style={styles.weekCardTitle}>Моя неделя</Text><Text style={styles.weekCardText}>{weekly.journalCount ? `Записей за неделю: ${weekly.journalCount} · посмотри, что получилось заметить` : 'За последние 7 дней пока нет записей — добавь мысль, чтобы увидеть динамику.'}</Text><Pressable onPress={onOpenInsights} style={styles.weekCardAction}><Text style={styles.weekCardActionText}>Посмотреть неделю ›</Text></Pressable></AppCard>
     </ScrollView>
     <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
   </SafeAreaView>;
@@ -289,11 +291,10 @@ function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onS
 function ComposerScreen({ mood, onMoodChange, thought, onThoughtChange, onClose, onSubmit, onToggleVoice, isRecording, voiceLoading, loading, error, activeTab, onTabChange }) {
   return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.composerContent} keyboardShouldPersistTaps="handled">
     <Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>‹ Назад</Text></Pressable>
-    <Text style={styles.composerTitle}>Новая мысль</Text><Text style={styles.composerSubtitle}>Расскажи как есть — я помогу навести ясность.</Text>
-    <MoodPicker mood={mood} onChange={onMoodChange} />
+    <View style={styles.composerHeading}><Text style={styles.composerTitle}>Новая мысль</Text><Text style={styles.composerSubtitle}>Расскажи как есть — я помогу навести ясность.</Text></View>
+    <View style={styles.composerMoodPicker}><MoodPicker mood={mood} onChange={onMoodChange} /></View>
     <TextInput value={thought} onChangeText={onThoughtChange} multiline placeholder="Что сейчас у тебя в голове?" placeholderTextColor="#7D7593" style={styles.composerInput} />
-    {isRecording && <Text style={styles.recordingIndicator}>Идёт запись — говори, когда будешь готов.</Text>}
-    <Pressable disabled={voiceLoading} onPress={onToggleVoice} style={[styles.voiceCaptureButton, isRecording && styles.recordingButton, voiceLoading && styles.disabledButton]}><Text style={[styles.voiceCaptureText, isRecording && styles.recordingButtonText]}>{voiceLoading ? 'Расшифровываем…' : isRecording ? 'Остановить запись' : 'Записать голосом'}</Text></Pressable>
+    <View style={styles.recordingControl}><Pressable disabled={voiceLoading} onPress={onToggleVoice} style={[styles.recordingOrbitOuter, voiceLoading && styles.disabledButton]}><View style={styles.recordingOrbitMiddle}><View style={[styles.recordingOrbitCore, isRecording && styles.recordingOrbitCoreActive]}><Text style={styles.recordingOrbitLabel}>{isRecording ? '■' : '🎙'}</Text></View></View></Pressable><Text style={styles.voiceCaptureText}>{voiceLoading ? 'Расшифровываем…' : isRecording ? 'Остановить запись' : 'Записать голосом'}</Text>{isRecording && <Text style={styles.recordingIndicator}>Идёт запись — говори, когда будешь готов.</Text>}</View>
     <Pressable disabled={loading || !thought.trim()} onPress={onSubmit} style={[styles.primaryButton, (!thought.trim() || loading) && styles.disabledButton]}><Text style={styles.primaryButtonText}>{loading ? 'Анализируем…' : 'Получить разбор'}</Text></Pressable>
     {error && <Text style={styles.error}>{error}</Text>}
     <Text style={styles.privacyNote}>Твои мысли остаются твоими.</Text>
@@ -335,8 +336,8 @@ function GoalsScreen({ goals, onAdd, onProgress, onClose, activeTab, onTabChange
   </ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
-function InsightsScreen({ insights, onClose, activeTab, onTabChange }) {
-  return <SafeAreaView style={styles.screen}><View style={styles.flexGrow}><View style={styles.card}><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Неделя</Text><Text style={styles.body}>Записей: {insights.journalCount}</Text><Text style={styles.body}>Среднее настроение: {insights.averageMood ?? 'пока нет данных'}/5</Text><Text style={styles.body}>Привычки сегодня: {insights.habitsCompleted}/{insights.habitsTotal}</Text><Text style={styles.body}>Активные цели: {insights.activeGoals}</Text><Text style={styles.body}>Выполненные цели: {insights.completedGoals}</Text></View></View><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
+function InsightsScreen({ insights, onClose, onOpenHabits, activeTab, onTabChange }) {
+  return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.insightsContent}><Pressable onPress={onClose} style={styles.backButton}><Text style={styles.backButtonText}>← На главную</Text></Pressable><Text style={styles.resultTitle}>Моя неделя</Text>{!insights.hasWeeklyActivity ? <AppCard style={styles.insightCard}><Text style={styles.insightCardTitle}>Пока нет данных за неделю</Text><Text style={styles.body}>Добавь мысль, привычку или цель — здесь появится спокойный обзор твоей недели.</Text></AppCard> : <><AppCard style={styles.insightCard}><Text style={styles.insightCardTitle}>Настроение по дням</Text><View style={styles.moodTimeline}>{insights.moodTimeline.map((day) => <View key={day.dateKey} style={styles.moodDay}><Text style={styles.moodDayValue}>{day.mood ?? '—'}</Text><Text style={styles.moodDayLabel}>{day.label}</Text></View>)}</View></AppCard><View style={styles.statsRow}><AppCard style={styles.statCard}><Text style={styles.statLabel}>Записей за неделю</Text><Text style={styles.statValue}>{insights.journalCount}</Text></AppCard><AppCard style={styles.statCard}><Text style={styles.statLabel}>Привычки сегодня</Text><Text style={styles.statValue}>{insights.habitsCompleted} из {insights.habitsTotal}</Text></AppCard><AppCard style={styles.statCard}><Text style={styles.statLabel}>Цели в работе</Text><Text style={styles.statValue}>{insights.activeGoals}</Text></AppCard></View><AppCard style={styles.insightCard}><Text style={styles.insightCardTitle}>Что можно заметить</Text><Text style={styles.body}>{insights.journalCount ? `За последние 7 дней ты оставил${insights.journalCount === 1 ? '' : 'а'} ${insights.journalCount} ${insights.journalCount === 1 ? 'запись' : 'записей'}. Это просто снимок того, что уже есть.` : 'В дневнике пока нет записей за эту неделю. Остальные данные собраны отдельно.'}</Text></AppCard></>}<AppCard style={styles.focusCard}><Text style={styles.insightCardTitle}>Фокус на сегодня</Text><Text style={styles.body}>Выбери одну привычку, которой хочешь уделить внимание сегодня.</Text><Pressable onPress={onOpenHabits} style={styles.focusAction}><Text style={styles.focusActionText}>Выбрать фокус</Text></Pressable></AppCard></ScrollView><BottomNavigation activeTab={activeTab} onTabChange={onTabChange} /></SafeAreaView>;
 }
 
 function ProfileScreen({ email, profile, onSave, onSignOut, onClose, activeTab, onTabChange }) {
@@ -520,40 +521,62 @@ const styles = StyleSheet.create({
   homeSubtitle: { color: '#686177', fontSize: 15, lineHeight: 22, marginTop: 8, maxWidth: 292 },
   avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 1, borderColor: '#D7CCF0', backgroundColor: '#EEE9FF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#6652A4', fontSize: 18, fontWeight: '800' },
-  checkInSurface: { gap: 14, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#E7E1F1', backgroundColor: '#FFFFFF' },
+  checkInSurface: { gap: 14, padding: 18 },
   checkInTitle: { color: '#30294B', fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
   moodChoice: { flex: 1, alignItems: 'center', gap: 6, minHeight: 60, paddingVertical: 6, borderRadius: 12 },
   moodDot: { width: 22, height: 22, borderWidth: 2, borderColor: '#A39BAD', borderRadius: 11, backgroundColor: '#FFFFFF' },
   moodDotSelected: { borderColor: '#7562B8', backgroundColor: '#E8E0FB' },
   moodLabel: { color: '#716A82', fontSize: 10, textAlign: 'center', fontWeight: '700' },
   moodLabelSelected: { color: '#6652A4' },
-  quickThoughtSurface: { gap: 8, padding: 4, borderWidth: 1, borderColor: '#D6CBEF', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  quickThoughtSurface: { gap: 8, padding: 4, borderColor: '#D6CBEF' },
   quickThoughtInput: { minHeight: 104, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, color: '#30294B', fontSize: 17, lineHeight: 24, textAlignVertical: 'top' },
   voiceShortcut: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, marginLeft: 4, marginBottom: 4, borderRadius: 10, backgroundColor: '#F0EBFF' },
   voiceShortcutText: { color: '#6652A4', fontSize: 14, fontWeight: '800' },
   homePrimaryButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 16, minHeight: 58, paddingHorizontal: 16, backgroundColor: '#7562B8' },
   homePrimaryButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
-  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E3DAF1', backgroundColor: '#F8F5FF' },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderColor: '#E3DAF1', backgroundColor: '#F8F5FF' },
   todayIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9E1FA' },
   todayIconText: { color: '#6652A4', fontSize: 20, fontWeight: '800' },
   flexGrow: { flex: 1 },
   todayTitle: { color: '#30294B', fontSize: 17, fontWeight: '800', marginBottom: 3 },
   todayText: { color: '#716A82', fontSize: 14 },
   rowArrow: { color: '#6652A4', fontSize: 28, lineHeight: 28 },
-  insightSurface: { gap: 12, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#DCD1F3', backgroundColor: '#F3EFFF' },
-  insightHeading: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
-  insightText: { color: '#30294B', fontSize: 19, lineHeight: 27, fontWeight: '700', letterSpacing: -0.25 },
-  insightAction: { color: '#6652A4', fontSize: 15, fontWeight: '800', marginTop: 4 },
+  weekCard: { gap: 12, padding: 18, borderColor: '#DCD1F3', backgroundColor: '#F3EFFF' },
+  weekCardTitle: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
+  weekCardText: { color: '#30294B', fontSize: 18, lineHeight: 26, fontWeight: '700', letterSpacing: -0.2 },
+  weekCardAction: { alignSelf: 'flex-start', paddingVertical: 6 },
+  weekCardActionText: { color: '#6652A4', fontSize: 15, fontWeight: '800' },
   bottomNavigation: { position: 'relative', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', minHeight: 70, marginHorizontal: 12, marginBottom: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1, borderColor: '#E1DBEC', backgroundColor: '#FFFFFF' },
   activeTabIndicator: { position: 'absolute', bottom: 6, height: 3, borderRadius: 99, backgroundColor: '#7562B8' },
   bottomItem: { alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 56 },
   bottomLabel: { color: '#716A82', fontSize: 12, fontWeight: '700' },
   bottomLabelActive: { color: '#6652A4' },
-  composerContent: { padding: 24, paddingBottom: 44, gap: 18 },
+  composerContent: { padding: 24, paddingBottom: 44, gap: 20 },
+  composerHeading: { alignItems: 'center', gap: 8, marginTop: 4 },
   composerTitle: { color: '#30294B', fontSize: 32, lineHeight: 40, fontWeight: '800', letterSpacing: -0.7 },
-  composerSubtitle: { color: '#686177', fontSize: 17, lineHeight: 25, marginBottom: 4 },
-  composerInput: { minHeight: 260, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#D6CBEF', backgroundColor: '#FFFFFF', color: '#30294B', fontSize: 17, lineHeight: 25, textAlignVertical: 'top' },
-  voiceCaptureButton: { alignItems: 'center', borderWidth: 1, borderColor: '#CEC4EC', borderRadius: 16, minHeight: 56, justifyContent: 'center', backgroundColor: '#F7F3FF' },
+  composerSubtitle: { color: '#686177', fontSize: 17, lineHeight: 25, textAlign: 'center' },
+  composerMoodPicker: { alignSelf: 'center', width: '100%', padding: 12, borderRadius: 48, backgroundColor: '#F3EFFF' },
+  composerInput: { minHeight: 250, padding: 20, borderRadius: 22, borderWidth: 1, borderColor: '#D6CBEF', backgroundColor: '#FFFFFF', color: '#30294B', fontSize: 17, lineHeight: 25, textAlignVertical: 'top' },
+  recordingControl: { alignItems: 'center', gap: 9 },
+  recordingOrbitOuter: { width: 112, height: 112, borderRadius: 56, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEE9FF' },
+  recordingOrbitMiddle: { width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: '#DDD2FA' },
+  recordingOrbitCore: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7562B8' },
+  recordingOrbitCoreActive: { backgroundColor: '#B42318' },
+  recordingOrbitLabel: { color: '#FFFFFF', fontSize: 25, lineHeight: 30 },
   voiceCaptureText: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
   privacyNote: { color: '#716A82', fontSize: 14, textAlign: 'center', marginTop: 4 },
+  insightsContent: { gap: 16, padding: 20, paddingBottom: 40 },
+  insightCard: { gap: 12, padding: 18 },
+  insightCardTitle: { color: '#30294B', fontSize: 18, fontWeight: '800' },
+  moodTimeline: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  moodDay: { flex: 1, minHeight: 66, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, backgroundColor: '#F6F3FD' },
+  moodDayValue: { color: '#52428A', fontSize: 17, fontWeight: '800' },
+  moodDayLabel: { color: '#716A82', fontSize: 11, fontWeight: '700' },
+  statsRow: { gap: 10 },
+  statCard: { gap: 4, padding: 16 },
+  statLabel: { color: '#716A82', fontSize: 14, fontWeight: '700' },
+  statValue: { color: '#30294B', fontSize: 24, fontWeight: '800' },
+  focusCard: { gap: 12, padding: 18, backgroundColor: '#F3EFFF' },
+  focusAction: { alignSelf: 'flex-start', paddingVertical: 6 },
+  focusActionText: { color: '#6652A4', fontSize: 16, fontWeight: '800' },
 });
