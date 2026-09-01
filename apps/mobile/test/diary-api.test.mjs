@@ -22,6 +22,20 @@ test('sends mood and an optional user access token to the API', async () => {
   assert.deepEqual(JSON.parse(result.body), { text: 'A better day.', mood: 5 });
 });
 
+test('shows an actionable error when the AI response is incomplete', async () => {
+  await assert.rejects(
+    () => analyzeDiaryThought({
+      apiUrl: 'https://lifeos.example',
+      text: 'Моя мысль',
+      fetchImpl: async () => ({
+        ok: false,
+        json: async () => ({ error: 'OpenRouter returned an incomplete analysis' }),
+      }),
+    }),
+    { message: 'Не удалось подготовить полный AI-анализ. Попробуй ещё раз.' },
+  );
+});
+
 test('loads a signed-in user history from the LifeOS API', async () => {
   const records = await fetchDiaryHistory({
     apiUrl: 'http://192.168.1.2:8787', accessToken: 'session-token',

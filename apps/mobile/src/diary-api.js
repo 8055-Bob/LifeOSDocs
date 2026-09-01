@@ -8,7 +8,13 @@ export async function analyzeDiaryThought({ apiUrl, text, mood = null, accessTok
   const response = await fetchImpl(`${apiUrl.replace(/\/$/, '')}/v1/diary/analyze`, {
     method: 'POST', headers, body: JSON.stringify({ text, mood }),
   });
-  if (!response.ok) throw new Error('Не удалось выполнить AI-анализ');
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    if (body.error === 'OpenRouter returned an incomplete analysis') {
+      throw new Error('Не удалось подготовить полный AI-анализ. Попробуй ещё раз.');
+    }
+    throw new Error('Не удалось выполнить AI-анализ');
+  }
   return response.json();
 }
 
