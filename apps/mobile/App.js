@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Alert, BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { createAnalysisResultViewModel } from './src/analysis-result-view-model.js';
 import { analyzeDiaryThought, deleteDiaryRecord, fetchDiaryHistory } from './src/diary-api.js';
 import { createJournalHistoryViewModel, prependJournalRecord } from './src/journal-history.js';
@@ -10,7 +10,8 @@ import { completeHabit, createHabit, fetchHabits } from './src/supabase-habits-a
 import { createGoal, fetchGoals, updateGoalProgress } from './src/supabase-goals-api.js';
 import { createWeeklyInsights } from './src/weekly-insights.js';
 import { fetchProfile, saveProfile } from './src/supabase-profile-api.js';
-import { moodOptions } from './src/mood-options.js';
+import { primaryTabs } from './src/primary-navigation.js';
+import { BottomNavigation, MoodPicker } from './src/mobile-ui.js';
 import { RecordingPresets, requestRecordingPermissionsAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { transcribeAudio } from './src/groq-transcription-api.js';
 import PagerView from 'react-native-pager-view';
@@ -222,7 +223,7 @@ export default function App() {
     setShowHabits(false);
     setShowInsights(false);
     setActiveTab(tab);
-    pagerRef.current?.setPage(['home', 'diary', 'goals', 'profile'].indexOf(tab));
+    pagerRef.current?.setPage(primaryTabs.map((item) => item.id).indexOf(tab));
   }
 
   if (showResult && analysis) {
@@ -245,7 +246,7 @@ export default function App() {
   }
 
   return (
-    <PagerView ref={pagerRef} style={styles.pager} initialPage={['home', 'diary', 'goals', 'profile'].indexOf(activeTab)} onPageSelected={(event) => setActiveTab(['home', 'diary', 'goals', 'profile'][event.nativeEvent.position])}>
+    <PagerView ref={pagerRef} style={styles.pager} initialPage={primaryTabs.map((item) => item.id).indexOf(activeTab)} onPageSelected={(event) => setActiveTab(primaryTabs.map((item) => item.id)[event.nativeEvent.position])}>
       <View key="home" style={styles.pagerPage}><HomeScreen profile={profile} mood={mood} onMoodChange={setMood} thought={thought} onThoughtChange={setThought} onSubmitThought={submitThought} loading={loading} habits={habits} history={history} onOpenComposer={() => setShowComposer(true)} onOpenHabits={() => setShowHabits(true)} onOpenInsights={() => setShowInsights(true)} onOpenProfile={() => openPrimaryTab('profile')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="diary" style={styles.pagerPage}><HistoryScreen records={createJournalHistoryViewModel(history)} loading={historyLoading} error={historyError} onDelete={removeRecord} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
       <View key="goals" style={styles.pagerPage}><GoalsScreen goals={goals} onAdd={addGoal} onProgress={setGoalProgress} onClose={() => openPrimaryTab('home')} activeTab={activeTab} onTabChange={openPrimaryTab} /></View>
@@ -283,25 +284,6 @@ function HomeScreen({ profile, mood, onMoodChange, thought, onThoughtChange, onS
     </ScrollView>
     <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
   </SafeAreaView>;
-}
-
-function MoodPicker({ mood, onChange }) {
-  return <View style={styles.moodRow}>{moodOptions.map((option) => <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.moodChoice, mood === option.value && styles.moodSelected]}><Text style={styles.moodEmoji}>{option.emoji}</Text><Text style={[styles.moodLabel, mood === option.value && styles.moodLabelSelected]}>{option.label}</Text></Pressable>)}</View>;
-}
-
-function BottomNavigation({ activeTab, onTabChange }) {
-  const { width } = useWindowDimensions();
-  const tabs = [{ id: 'home', label: 'Главная' }, { id: 'diary', label: 'Дневник' }, { id: 'goals', label: 'Цели' }, { id: 'profile', label: 'Профиль' }];
-  const itemWidth = (width - 24) / tabs.length;
-  const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.id === activeTab));
-  const indicatorX = useRef(new Animated.Value(activeIndex * itemWidth)).current;
-  useEffect(() => {
-    Animated.spring(indicatorX, { toValue: activeIndex * itemWidth, useNativeDriver: true, stiffness: 260, damping: 24, mass: 0.65 }).start();
-  }, [activeIndex, itemWidth, indicatorX]);
-  return <View style={styles.bottomNavigation}>
-    <Animated.View pointerEvents="none" style={[styles.activeTabIndicator, { width: itemWidth, transform: [{ translateX: indicatorX }] }]} />
-    {tabs.map((tab) => <Pressable key={tab.id} onPress={() => onTabChange(tab.id)} style={styles.bottomItem}><Text style={[styles.bottomLabel, activeTab === tab.id && styles.bottomLabelActive]}>{tab.label}</Text></Pressable>)}
-  </View>;
 }
 
 function ComposerScreen({ mood, onMoodChange, thought, onThoughtChange, onClose, onSubmit, onToggleVoice, isRecording, voiceLoading, loading, error, activeTab, onTabChange }) {
