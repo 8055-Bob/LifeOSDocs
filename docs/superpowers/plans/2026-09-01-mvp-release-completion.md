@@ -218,7 +218,7 @@ Run: `rg -n "Google|Apple|push|web|финансов" README.md`
 
 Expected: any match is confined to the explicit “не входит” section.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```powershell
 git add README.md docs/superpowers/plans/2026-09-01-mvp-release-completion.md
